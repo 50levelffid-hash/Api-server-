@@ -18,7 +18,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // ============================================================
 
 const MONGODB_URL = "mongodb+srv://sahajada07:Sahajada123@cluster0.vynn0ht.mongodb.net/?appName=Cluster0";
-const DB_NAME = "otp_bomber";
+const DB_NAME = "otp_bomb";
 
 const MAX_EFFECTIVE_DURATION = 10;
 const FIRST_RUN_RETRY = 1;
